@@ -50,5 +50,46 @@ for k = 1:nLevels
         'Resolution', 200);
 end
 
+% ---- Road exposure per 1 km segment (if make_segments has been run) ------
+segFile = fullfile(cfg.osmDir, 'highway_segments.mat');
+if isfile(segFile)
+    H = load(segFile, 'segs', 'samples');
+    [I, J] = geographicToDiscrete(R, H.samples.lat, H.samples.lon);
+    inside = ~isnan(I) & ~isnan(J);
+    idx = sub2ind(size(Z), I(inside), J(inside));
+    sCh = H.samples.chainage_km(inside);
+    segOf = discretize(sCh, [H.segs.start_km; H.segs.end_km(end)]);
+    nSeg = height(H.segs);
+    frac = zeros(nSeg, nLevels);
+    for k = 1:nLevels
+        fk = floodMaps(:,:,k);
+        wet = fk(idx);
+        frac(:, k) = accumarray(segOf, double(wet), [nSeg 1], @mean, NaN);
+    end
+    names = cellstr(compose('flooded_frac_%03dcm', round(100*cfg.slr_m)));
+    roadTable = [H.segs, array2table(frac, 'VariableNames', names)];
+    writetable(roadTable, fullfile(cfg.resultsDir, 'm0_bathtub_road_segments.csv'));
+    for k = 1:nLevels
+        fprintf('Sea level +%.2f m: %d of %d road segments have some flooded length\n', ...
+            cfg.slr_m(k), sum(frac(:,k) > 0), nSeg);
+    end
+
+    fig = figure('Color', 'w', 'Position', [100 100 1000 300]);
+    ax = axes(fig);
+    imagesc(ax, H.segs.start_km + 0.5, 1:nLevels, frac');
+    set(ax, 'YDir', 'normal', 'YTick', 1:nLevels, ...
+        'YTickLabel', compose('+%.1f m', cfg.slr_m));
+    colormap(ax, flipud(hot));
+    clim(ax, [0 1]);
+    cb = colorbar(ax);
+    cb.Label.String = 'Share of segment length flooded';
+    xlabel(ax, 'Chainage along the highway (km, from the westernmost mapped point)');
+    ylabel(ax, 'Sea-level rise');
+    title(ax, 'M0 bathtub: flooded share of each 1 km road segment');
+    exportgraphics(fig, fullfile(cfg.figDir, 'm0_bathtub_road_segments.png'), 'Resolution', 200);
+else
+    fprintf('Run make_segments first to get results per road segment.\n');
+end
+
 disp(results)
 fprintf('Saved results to %s\n', cfg.resultsDir);

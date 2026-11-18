@@ -29,10 +29,11 @@ method and the gap between them.
 | `project_config.m` | Study area, folders and settings |
 | `setup_project.m` | Creates folders and checks toolboxes |
 | `get_osm_features.m` | Highway, refinery and port outlines from OpenStreetMap |
+| `make_segments.m` | Merges the highway pieces into one centreline and cuts it into 1 km segments |
 | `load_dem.m` | Reads and joins DeltaDTM tiles and masks |
 | `bathtub_flood.m` | Method M0 (connected bathtub) |
 | `cell_area_km2.m` | Grid cell areas |
-| `run_m0_bathtub.m` | First M0 run at fixed sea-level values |
+| `run_m0_bathtub.m` | First M0 run at fixed sea-level values, with results per road segment |
 | `data/esia/esia_section1_claims.csv` | Claims extracted from the Section 1 assessment, with page numbers |
 
 ## Data (not stored in this repository)
