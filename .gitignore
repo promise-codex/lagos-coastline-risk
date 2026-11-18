@@ -1,0 +1,5 @@
+# Large downloaded data and generated outputs
+data/dem/
+data/osm/
+results/
+*.asv

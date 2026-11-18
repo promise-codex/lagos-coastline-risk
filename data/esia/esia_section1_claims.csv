@@ -1,0 +1,18 @@
+id,topic,claim,value,unit,page,source_cited_in_ESIA,note
+C1,sea level,NASA 2100 sea-level rise for Lagos under SSP1-1.9,0.42,m,4-76,NASA,
+C2,sea level,NASA 2100 sea-level rise for Lagos under SSP1-2.6,0.47,m,4-76,NASA,
+C3,sea level,NASA 2100 sea-level rise for Lagos under SSP2-4.5,0.60,m,4-76,NASA,
+C4,sea level,NASA 2100 sea-level rise for Lagos under SSP5-8.5,0.84,m,4-76,NASA,
+C5,sea level,Sea-level rise at 1.5 / 2.0 / 3.0 / 4.0 / 5.0 deg C of warming,0.48/0.55/0.65/0.75/0.86,m,4-76,not stated,
+C6,sea level,"A water level rise of 0.5 m will not affect the proposed road (Climate Central Coastal Risk Screening Tool)",0.5,m,4-77,Climate Central,Test value is below the assessment's own SSP2-4.5 (0.60 m) and SSP5-8.5 (0.84 m) 2100 values
+C7,sea level,"Elevation and design of the road are sufficient to withstand a moderate rise in sea level",,,4-78,,No road design elevation is given in the text
+C8,flood risk,Corridor area at very low / low flood risk,0.00 / 0.00,ha,4-79,Natural Eco Capital fieldwork April 2024,
+C9,flood risk,Corridor area at moderate / high / very high flood risk,1022.34 / 4981.07 / 3873.15,ha,4-79,Natural Eco Capital fieldwork April 2024,Total 9876.56 ha; very high includes Oniru; Jakande; Ojun Ajah; Sangotedo; Igand to Eleko
+C10,shoreline,Net shoreline movement 1984-2024 (erosion range),-315 to 0,m,4-59 to 4-60,ESIA analysis,Largest erosion Oniru to Marwa (CH 3+600 to 4+800)
+C11,shoreline,End point rate 1984-2024 (erosion range),-8 to -1,m/yr,4-60 to 4-61,ESIA analysis,Accretion 1 to 96 m/yr mainly at Eko Atlantic (reclamation)
+C12,shoreline,Erosion will reach the road within 10 to 20 years at CH 3+800; CH 12+400 to 12+900; CH 33+600 to 37+500,,,4-62,ESIA forecast (linear rates 1984-2024),
+C13,shoreline,Average shoreline change / erosion / accretion rate 2001-2020 (Google Earth),+0.93 / -1.94 / +4.84,m/yr,4-54,Adeaga et al.,
+C14,shoreline,Share of Lagos coastline subject to erosion; average erosion rate,86% ; 8.2,m/yr,4-88 to 4-89,World Bank / SURGE / SECO (2023),
+C15,waves,Typical nearshore significant wave height; direction,0.75 to 2.0 m ; 186 to 208 deg (SSW),,4-65 to 4-66,Muttray (2008) 1997-2007 3-hourly,Hs exceeded 99.5/77/29/5/0.3 % of time for 0.5/1.0/1.5/2.0/2.5 m
+C16,topography,Most of south Lagos lies between 0 and 5 m above mean sea level,0 to 5,m,4-22,ESIA contour map,
+C17,subsidence,Land subsidence is named as one climate impact scenario but never quantified,,,4-80,,Text search: 3 mentions of subsidence; no rate given
