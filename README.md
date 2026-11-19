@@ -92,7 +92,7 @@ Full claim lists with page numbers: `data/esia/esia_section1_claims.csv` and `da
 
 ### Figures
 
-First year each road km is reached, for every method (SSP2-4.5 median). Points missing for a method mean that km is not reached by 2150. Where M2 and M1 give the same year, the M2 point sits on the M1 point:
+First year each road km is reached, for every method (SSP2-4.5 median). Points missing for a method mean that km is not reached by 2150. Where M2 and M1 give the same year, the M2 dot sits inside the M1 ring:
 
 ![Method ladder](docs/figures/method_ladder_full.png)
 
