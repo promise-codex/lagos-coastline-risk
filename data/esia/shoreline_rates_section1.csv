@@ -1,0 +1,10 @@
+from_km,to_km,epr_min_m_yr,epr_max_m_yr,epr_used_m_yr,page,text_in_assessment,note
+3.6,4.8,-8,-5,-6.5,4-60 to 4-61,"highest range of coastal erosion rates ... Oniru and Marwa (chainage 3+600m to 4+800m)",
+4.8,5.2,-4,-2,-3,4-61,"second level of coastal erosion rate (-4m/year to -2m/year) ... Marwa",
+5.6,7.4,-1,0,-0.5,4-61,"third level (-1m/year to 0m/year) ... Marwa and Elegushi",
+7.4,12.2,-4,-2,-3,4-61,"second level ... Elegushi to Jakande (Chainages 7+400m to 12+200m)","Report also lists spot chainages 7.7-9.5 km in the third level; the wider second-level band is used"
+12.3,15.1,NaN,NaN,NaN,4-61,"highest rate of coastal accretion range (-8m/year to -5m/year) ... Ilasan, Lafiaji, Okun Ajah","Contradictory: called accretion but given negative (erosion) rates, while p. 4-62 forecasts erosion reaching the road at 12.4-12.9 km. Left blank and flagged"
+15.1,17.6,-4,-2,-3,4-61,"second level ... Lafiaji to Okun Ajah (15+100m to 17+600m)",
+16.8,37.4,-1,0,-0.5,4-61,"third level ... Okun Ajah ... Iwesolu (16+800m to 37+400m)","Overlaps the previous band at 16.8-17.6 km; the previous band is kept there"
+37.4,45.5,0,1,0,4-61,"least range of coastal accretion ... Iwesolu and Badore","Accretion; set to 0 (no further gain assumed)"
+45.5,47.4,-1,0,-0.5,4-61,"third level ... Badore to Eleko (45+500m to 47+400m)",
