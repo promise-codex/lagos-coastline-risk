@@ -250,6 +250,7 @@ Results are written to `results/` and figures to `results/figures/`.
 | `run_m2_shoreline.m` | Step 4: moving beach (M2) with the Simulink model, check against the assessment's erosion forecast, full method ladder |
 | `data/shoreline/` | Water-index (MNDWI) median composites of the coastal strip: Landsat 1986 (pooled 1984-1987), 3-year epochs 1998-2012, yearly 2013-2025; Sentinel-2 yearly 2016-2025 |
 | `shoreline/` | Python scripts that made the composites (Planetary Computer, odc-stac) and their notes |
+| `tShorePosition.m` | Unit tests for `shore_position.m` (written with MATLAB Copilot) |
 | `shore_transects.m`, `shore_position.m` | Transect at each road km, and the shoreline crossing on one transect (shared by steps 6 and 7) |
 | `calibrate_shoreline_model.m` | Step 9: calibration of the Simulink shoreline model (1986-2009) and hindcast test (2012-2025) against simple forecasts |
 | `run_assets.m` | Step 8: first year 1% and 10% of the Dangote site and the Lekki port are under water (M0, M1, M3); prints the elevation inside each outline |
@@ -299,6 +300,9 @@ This project used generative AI as a working assistant, and every number in it c
 - **Claude (Anthropic)** was used to scope the question, read the two highway assessments and list their claims with page numbers (so any reader can check each one in the PDF), draft the MATLAB scripts and the Simulink model builder, and debug errors from MATLAB runs. All code was run and checked in MATLAB Online by the author. Where the AI suggested a cause for a strange result (for example, the low stretch near Orimedu), the author checked it against satellite imagery before keeping it.
 - For the radar step, Claude chose the Sentinel-1 track and bursts with the author, submitted the 759 HyP3 jobs through the author's own signed-in ASF account, ran the download and MintPy processing in a cloud workspace, picked the GPS tie, and wrote the scripts in `insar/`. The settings and checks are listed in `insar/README_insar.md` so they can be repeated.
 - For the shoreline step, Claude wrote the Python scripts in `shoreline/` that build the water-index composites, ran them in a cloud workspace, and drafted `extract_shorelines.m`. The author ran the MATLAB part.
+- **MATLAB Copilot** (in MATLAB Online R2026b) was used by the author with the shoreline code open:
+  1. Prompt: "Explain what this function does and list any edge cases where it could return a wrong shoreline position" (`shore_position.m`). Copilot's explanation matched the code. Of its edge cases, two are real limits of this method and are listed under assumptions: a noisy profile with several crossings (the code takes the crossing nearest the sea, which is the open-coast beach, not a lagoon edge behind it), and pixels that pass the clear-look count but are still wrong (surf, wet sand). Its other points (unsorted or misaligned inputs) cannot happen with how the transects are built.
+  2. Prompt: "Write a MATLAB unit test (matlab.unittest) for this function covering a clean crossing, a profile with no water at the sea end, and a data gap before land." Copilot wrote `tShorePosition.m`. The expected values were checked by hand (for the clean crossing, 1 + (0.5 - 0.2) / (0.8 - 0.2) = 1.5) and the test was kept unchanged. Run it with `runtests('tShorePosition')`.
 - **What AI did not do:** it did not supply any data values. Sea-level, elevation, tide and shoreline numbers come only from the cited files and reports.
 
 ## Licence
