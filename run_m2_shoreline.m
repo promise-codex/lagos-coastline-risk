@@ -28,7 +28,7 @@ midKm = (segs.start_km + segs.end_km) / 2;
 % ---- 1. Distance from today's shoreline to the road ------------------------
 cellA = cell_area_km2(R);
 cellM = 1000 * sqrt(mean(cellA(:)));
-distOcean = bwdist(M == 1) * cellM;                       % metres to nearest ocean cell
+distOcean = double(bwdist(M == 1)) * cellM;                      % metres to nearest ocean cell
 [I, J] = geographicToDiscrete(R, H.samples.lat, H.samples.lon);
 use = ~isnan(I) & ~isnan(J) & H.samples.mapped(:);
 d = distOcean(sub2ind(size(M), I(use), J(use)));
