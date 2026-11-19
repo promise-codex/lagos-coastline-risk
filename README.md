@@ -13,6 +13,9 @@ MATLAB and Simulink project for the MathWorks Global Student Challenge 2026
 4. About 3 km of the route (near km 50 to 54, Orimedu) crosses tidal wetland that is below today's high tide. These low channels are visible on satellite imagery.
 5. Shoreline erosion alone reaches only about 3 road km by 2100. Where it does matter (CH 3+800), the model reproduces the assessment's own forecast. At CH 33+600 to 37+500 the assessment's forecast does not follow from its own measured rate.
 6. In 2000 Monte Carlo runs the sinking error ranks above the sea-level percentile and the Bruun factor. Most of that error is the tie to GPS, because the only Lagos GPS records with public data end in 2013. A permanent GPS station on the corridor would cut the largest uncertainty in this result.
+7. Our own Landsat and Sentinel-2 shorelines (1984-2025) show the beach along the route retreating by a median 1.0 m/yr, 1.3 m/yr since 2009, with 49 km faster than 1 m/yr. A U-Net trained in MATLAB finds the same shoreline to within one pixel.
+8. A shoreline model calibrated on 1986-2009 does not predict 2012-2025 better than "no change". The coast changed behaviour: since the port works, sand has built up beside them and the beach to the east has retreated by up to about 220 m. Erosion forecasts from past rates, including the assessment's, are therefore weak.
+9. The Lekki port stays dry through 2150 in every case. The Dangote refinery site sinks about 5.5 mm/yr; a 10-year storm reaches 10% of it by about 2084 (SSP2-4.5).
 
 ## Question
 
