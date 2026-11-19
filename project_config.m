@@ -36,6 +36,33 @@ cfg.slr_m = [0.5 1.0 1.5 2.0];
 % included by default. Set to 1 to use the ocean only.
 cfg.waterSeedClasses = [1 2 3];
 
+% ---- Step 2 (M1): sea level by year plus sinking land -----------------
+% IPCC AR6 projections for the Lagos tide gauge (PSMSL 162), downloaded
+% from the NASA Sea Level Projection Tool. Values are relative to the
+% 1995-2014 average. We count rise from cfg.refYear and treat the
+% elevation model's zero (EGM2008) as mean sea level in that year.
+% DeltaDTM corrects Copernicus DEM (radar, 2011-2015) with ICESat-2 and
+% GEDI laser data (2018 onwards), so 2020 is an approximation; both this
+% and the EGM2008-to-sea-level offset are listed in the README assumptions.
+cfg.slrFile  = fullfile(cfg.dataDir, 'slr', 'ipcc_ar6_sea_level_projection_psmsl_id_162.xlsx');
+cfg.refYear  = 2020;
+cfg.years    = 2020:2150;
+% Scenarios used: {confidence, scenario, quantile}
+cfg.slrCases = {'medium', 'ssp126', 50; ...
+                'medium', 'ssp245', 50; ...
+                'medium', 'ssp585', 50; ...
+                'low',    'ssp585', 83};
+% Uniform land sinking rates tested (mm per year, positive = sinking).
+%   0     IPCC AR6 assumption (its land-motion term for Lagos is about 0)
+%   5     round low value for comparison
+%   11.4  highest rate in a 2015-2025 Sentinel-1 study summarised on
+%         PreventionWeb (authors still to be confirmed before citing)
+%   34    lower bound given for Lekki and Victoria Island by
+%         Ikuemonisan (2025), Discover Environment 3:148
+cfg.subsidence_mm_yr = [0 5 11.4 34];
+% Water levels at which the flood-level map is built (metres)
+cfg.floodLevels = 0:0.05:6;
+
 % Pixel connectivity for flooding: 8 lets water pass corner to corner,
 % 4 only through edges (more conservative).
 cfg.connectivity = 8;
