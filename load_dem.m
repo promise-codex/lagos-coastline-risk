@@ -20,10 +20,9 @@ maskFiles = demFiles(isMask);
 
 [Z, R] = joinTiles(elevFiles, cfg, true);
 if isempty(maskFiles)
-    warning('load_dem:noMask', ...
-        ['No mask tiles found. Water will be taken as the no-data cells ' ...
-         'of the elevation model instead.']);
-    M = [];
+    fprintf(['No mask tiles found, so the water mask is built from the no-data ' ...
+             'cells of the elevation model (see maskFromNoData).\n']);
+    M = maskFromNoData(Z, R);
 else
     [M, Rm] = joinTiles(maskFiles, cfg, false);
     if ~isequal(size(M), size(Z)) || any(abs(Rm.LatitudeLimits - R.LatitudeLimits) > 1e-9)
@@ -104,4 +103,36 @@ else
     R = georefcells(latlim, lonlim, size(A), ...
         'ColumnsStartFrom', R1.ColumnsStartFrom, 'RowsStartFrom', R1.RowsStartFrom);
 end
+end
+
+% -------------------------------------------------------------------------
+function M = maskFromNoData(Z, R)
+% Build a DeltaDTM-style mask when no mask tiles are available.
+%   0   land (has an elevation)
+%   1   ocean: in each column, the no-data cells running up from the
+%       southern edge until the first land cell (open sea up to the beach)
+%   2   other water: no-data cells connected to the ocean (lagoon, creeks)
+%   255 no-data cells not connected to the sea (could be inland lakes or
+%       ground above +10 m); these are NOT used as flood sources
+nodata = isnan(Z);
+M = zeros(size(Z), 'uint8');
+if strcmp(R.RowsStartFrom, 'north')
+    southRow = size(Z, 1); stepUp = -1;
+else
+    southRow = 1; stepUp = 1;
+end
+ocean = false(size(Z));
+for c = 1:size(Z, 2)
+    r = southRow;
+    while r >= 1 && r <= size(Z, 1) && nodata(r, c)
+        ocean(r, c) = true;
+        r = r + stepUp;
+    end
+end
+connected = imreconstruct(ocean, nodata, 8);
+M(nodata) = 255;
+M(connected) = 2;
+M(ocean) = 1;
+fprintf('Mask from no-data: %.1f%% ocean, %.1f%% other connected water, %.1f%% unconnected no-data\n', ...
+    100*mean(M(:) == 1), 100*mean(M(:) == 2), 100*mean(M(:) == 255));
 end
