@@ -3,7 +3,7 @@
 MATLAB and Simulink project for the MathWorks Global Student Challenge 2026
 (Sustainability and Renewable Energy: *Coastline Prediction using Existing Climate Change Models*).
 
-**Status:** land sinking is measured with our own Sentinel-1 radar processing (2017-2025, tied to GPS; see `insar/README_insar.md`) and applied to every elevation cell at its own rate. Still to add: own satellite shoreline positions, a hindcast test of the shoreline model, and elevation error in the uncertainty runs.
+**Status:** the numbers below come from a first full run with measured sinking. A fix to how land far from any radar pixel is filled is being run now, so they may still change. Land sinking is measured with our own Sentinel-1 radar processing (2017-2025, tied to GPS; see `insar/README_insar.md`) and applied to every elevation cell at its own rate. Still to add: own satellite shoreline positions, a hindcast test of the shoreline model, and elevation error in the uncertainty runs.
 
 ## Key findings
 
@@ -117,6 +117,14 @@ Chance that each road km is reached by 2050 and by 2100 across 2000 Monte Carlo 
 
 ![Uncertainty SSP2-4.5](docs/figures/uncertainty_ssp245.png)
 
+Land sinking measured by Sentinel-1 radar (2017-2025, tied to the UNILAG GPS stations):
+
+![Radar land motion map](docs/figures/insar_vlm_map.png)
+
+Measured sinking under each road km:
+
+![Sinking along the road](docs/figures/insar_road_profile.png)
+
 Route and 1 km segments used in the analysis:
 
 ![Highway segments](docs/figures/highway_segments.png)
@@ -200,7 +208,7 @@ Results are written to `results/` and figures to `results/figures/`.
 - Elevations are metres above EGM2008, taken as mean sea level in 2020. The offset between EGM2008 and local mean sea level at Lagos is not yet applied.
 - Sea level rise is counted from 2020 using the IPCC AR6 curve for Lagos (relative to 1995-2014).
 - Lagos Lagoon and connected creeks count as sea (tidal, open to the ocean). Water reaches land only through connected cells (8-connectivity).
-- Land sinking in M1 to M3 comes from the radar map, applied to every elevation cell at its own rate and kept constant from 2020 onwards; the connected bathtub is re-run for every year. Where the radar has no reliable pixel (water, dense vegetation), the cell takes the mean of radar pixels within 500 m, then 1500 m, then the nearest pixel, with a larger uncertainty. A first version that gave each road km a single rate was dropped: it missed water reaching the road through land that sinks faster than the road. The radar sees mostly buildings in built-up areas, so it may under-read sinking of open fill under the road there (see `insar/README_insar.md`). Uniform rates of 0, 5, 11.4 and 34 mm/yr are kept as sensitivity cases.
+- Land sinking in M1 to M3 comes from the radar map, applied to every elevation cell at its own rate and kept constant from 2020 onwards; the connected bathtub is re-run for every year. Where the radar has no reliable pixel (water, dense vegetation), the cell takes the mean of radar pixels within 500 m, then 1500 m, with a larger uncertainty. About three quarters of the land cells (wetland and bush away from the road, but only 2% of road points) are further than that from any radar pixel; they take a smooth Gaussian-weighted average of the radar pixels around them (sigma 3 km), or the median of the whole map where there are too few. `run_fullmap_sinking` prints the results with two other choices for these cells (the whole-map median, and the nearest pixel) so the effect of this choice is visible. A first version that gave each road km a single rate was dropped: it missed water reaching the road through land that sinks faster than the road. The radar sees mostly buildings in built-up areas, so it may under-read sinking of open fill under the road there (see `insar/README_insar.md`). Uniform rates of 0, 5, 11.4 and 34 mm/yr are kept as sensitivity cases.
 - M3 adds tide and storm levels from GTSM (1985-2014) as fixed heights above each year's mean sea level; changes in storminess are not included. The 95% upper bounds of these return levels at Lagos are unrealistically large (tens of metres) from the bootstrap fit, so only the best fit is used.
 - Tide and storm peaks enter from the open sea only. Lagoon water follows the mean sea level but not the ocean tide or surge (lower bound); the run also prints the upper bound where the lagoon gets the full ocean peak.
 - A bathtub fills every connected low cell to the event peak. Real storm peaks last hours, so flooding inland of the shore is overstated for short events; results for the road are the year the water can first reach it, not a prediction of damage.

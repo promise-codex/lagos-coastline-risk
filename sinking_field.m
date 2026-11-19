@@ -1,12 +1,13 @@
-function [V, S, src] = sinking_field(cfg, R, sz)
+function [V, S, src] = sinking_field(cfg, R, sz, farFill)
 %SINKING_FIELD Radar land-motion rate on the elevation-model grid.
-%   [V, S, src] = sinking_field(cfg, R, sz) returns, for every cell of the
+%   [V, S, src] = sinking_field(cfg, R, sz, farFill) returns, for every cell of the
 %   elevation grid (reference R, size sz):
 %     V    vertical rate in m/yr, positive = up (so sinking is negative)
 %     S    local 1-sigma of that rate in m/yr (GPS tie error not included)
 %     src  1 = radar pixel at this spot, 2 = mean of radar pixels within
 %          cfg.insarBuffer_m, 3 = mean within 3 x cfg.insarBuffer_m,
-%          4 = nearest radar pixel further away
+%          4 = further than 3 x cfg.insarBuffer_m from any radar pixel,
+%          filled by the option farFill (default cfg.insarFarFill, see below)
 %   Gaps (water, dense vegetation, low coherence) are filled on the 80 m
 %   radar grid first, with the average of the good radar
 %   pixels around them (normalised convolution), then the filled grid is sampled at each elevation
@@ -35,12 +36,40 @@ for j = 1:2
     use = isnan(vf) & n >= cfg.insarMinPixels;
     vf(use) = m1(use); sf(use) = sqrt(ms(use).^2 + sp(use).^2); code(use) = 1 + j;
 end
-% anything still empty: nearest radar pixel, with the spread of all pixels added
+% Cells still empty are more than 1.5 km from any good radar pixel (mostly
+% wetland and bush). How to fill them is a choice, so three options exist
+% and run_fullmap_sinking compares them:
+%   'regional'  Gaussian-weighted average of radar pixels around the cell
+%               (sigma cfg.insarRegional_m), then the scene median where
+%               even that has too few pixels. Smooth; the default.
+%   'median'    median of all radar pixels (no local information)
+%   'nearest'   the single nearest radar pixel (gives sharp wedges)
+if nargin < 4, farFill = cfg.insarFarFill; end
 rest = isnan(vf);
+allSpread = std(v(good)); allMed = median(v(good));
 if any(rest(:))
-    [~, nearestIdx] = bwdist(good);
-    vf(rest) = v(nearestIdx(rest));
-    sf(rest) = sqrt(s(nearestIdx(rest)).^2 + std(v(good))^2);
+    switch farFill
+        case 'regional'
+            sg = cfg.insarRegional_m / pxM; r = ceil(3 * sg);
+            g = exp(-(-r:r)'.^2 / (2 * sg^2));            % separable Gaussian, peak 1
+            n  = conv2(g, g, double(good), 'same');       % effective number of pixels
+            m1 = conv2(g, g, v .* good, 'same') ./ n;
+            m2 = conv2(g, g, v.^2 .* good, 'same') ./ n;
+            ms = conv2(g, g, s .* good, 'same') ./ n;
+            sp = sqrt(max(m2 - m1.^2, 0));
+            use = rest & n >= cfg.insarMinPixels;
+            vf(use) = m1(use); sf(use) = sqrt(ms(use).^2 + sp(use).^2);
+            rest2 = rest & ~use;
+            vf(rest2) = allMed; sf(rest2) = allSpread;
+        case 'median'
+            vf(rest) = allMed; sf(rest) = allSpread;
+        case 'nearest'
+            [~, nearestIdx] = bwdist(good);
+            vf(rest) = v(nearestIdx(rest));
+            sf(rest) = sqrt(s(nearestIdx(rest)).^2 + allSpread^2);
+        otherwise
+            error('sinking_field:fill', 'Unknown fill option %s', farFill);
+    end
     code(rest) = 4;
 end
 
@@ -54,7 +83,7 @@ V = reshape(vf(k), sz) / 1000; S = reshape(sf(k), sz) / 1000; src = reshape(code
 if any(out)
     % outside the footprint: nearest edge value is not measured, so use the
     % median of all radar pixels and flag it
-    V(out) = median(v(good)) / 1000; S(out) = std(v(good)) / 1000; src(out) = 4;
+    V(out) = allMed / 1000; S(out) = allSpread / 1000; src(out) = 4;
 end
 V = single(V); S = single(S);
 end

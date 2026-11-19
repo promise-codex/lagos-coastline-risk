@@ -68,6 +68,8 @@ cfg.insarFile       = fullfile(cfg.dataDir, 'insar', 'lagos_vlm_s1_2017_2025.tif
 cfg.insarBuffer_m   = 500;   % radar pixels within this distance of the road count for a segment
 cfg.insarMinPixels  = 10;    % fewer than this: search 3x wider, then fill from neighbours
 cfg.insarDatumSigma = 2.5;   % mm/yr, 1-sigma error of the GPS tie, common to all segments
+cfg.insarFarFill    = 'regional'; % cells > 1.5 km from radar pixels: 'regional', 'median' or 'nearest'
+cfg.insarRegional_m = 3000;  % sigma of the Gaussian average used by 'regional'
 % A 1 km road segment counts as reached when at least this share of its
 % length is under water (10 percent = 100 m). Using the single lowest
 % point instead lets one low pixel (a creek, a ditch or a data error)

@@ -28,7 +28,7 @@ years = cfg.years; t0 = cfg.refYear;
 
 land = M == 0;
 srcNames = {'radar pixel', sprintf('mean within %g m', cfg.insarBuffer_m), ...
-    sprintf('mean within %g m', 3 * cfg.insarBuffer_m), 'nearest pixel further away / outside'};
+    sprintf('mean within %g m', 3 * cfg.insarBuffer_m), sprintf('further away (fill: %s)', cfg.insarFarFill)};
 fprintf('Where the sinking rate of each cell comes from (land cells / road points):\n');
 for k = 1:4
     fprintf('  %-38s %5.1f%% / %5.1f%%\n', srcNames{k}, 100 * mean(src(land) == k), ...
@@ -93,6 +93,19 @@ fprintf('\nWhy one rate per km differs from the full map (road km low enough by 
 fprintf('  each road point sinks at the km median rate: %d km\n', sum(yrPtSeg <= 2100));
 fprintf('  each road point sinks at its own rate:       %d km\n', sum(yrPtOwn <= 2100));
 
+% ---- 2b. How much the fill of cells far from radar pixels matters -----------------------
+% Cells more than 1.5 km from any good radar pixel get no local measurement.
+% Compare the three fill options (SSP2-4.5 median, M1 and M3 without erosion).
+fprintf('\nFill of cells far from radar pixels (SSP2-4.5 median, road km reached by 2100):\n');
+fprintf('  %-10s %8s %10s %14s\n', 'Fill', 'M1 mean', 'high tide', '10-year storm');
+for f = {'regional', 'median', 'nearest'}
+    Vf = sinking_field(cfg, R, size(Z), f{1});
+    [a, o] = fullmap_first_years(Z, M, Vf, years, h, t0, Ecols([1 2 4], :), cfg, road);
+    fprintf('  %-10s %8d %10d %14d\n', f{1}, sum(a <= 2100), sum(min(a, o(:, 2)) <= 2100), ...
+        sum(min(a, o(:, 3)) <= 2100));
+end
+clear Vf
+
 % ---- 3. Full map, every scenario and percentile ----------------------------------------
 nSeg = road.nSeg;
 yrAny = nan(numel(scen), numel(q), nSeg);
@@ -127,13 +140,13 @@ xs = lon(1, 1:st:end); ys = lat(1:st:end, 1);
 fig = figure('Color', 'w', 'Position', [60 60 1250 820]);
 tl = tiledlayout(fig, 2, 1, 'TileSpacing', 'compact');
 ax1 = nexttile(tl);
-Vp = 1000 * double(V); Vp(~land) = NaN;
-imagesc(ax1, xs, ys, Vp(1:st:end, 1:st:end)); axis(ax1, 'xy'); set(ax1, 'DataAspectRatio', [1 cosd(6.45) 1]);
+Vp = 1000 * double(V); Vp(~land) = NaN; Vp = Vp(1:st:end, 1:st:end);
+imagesc(ax1, xs, ys, Vp, 'AlphaData', ~isnan(Vp)); set(ax1, 'Color', [0.75 0.85 0.95]);   % water shown light blue axis(ax1, 'xy'); set(ax1, 'DataAspectRatio', [1 cosd(6.45) 1]);
 colormap(ax1, flipud(redblue(256))); clim(ax1, [-20 20]);
 cb = colorbar(ax1); cb.Label.String = 'mm/yr (negative = sinking)';
 hold(ax1, 'on'); [rI, rJ] = ind2sub(size(Z), road.idx);
 plot(ax1, lon(1, rJ), lat(rI, 1), 'k.', 'MarkerSize', 2); hold(ax1, 'off');
-title(ax1, 'Land motion used for every elevation cell (radar, gaps filled from nearby pixels); black = highway');
+title(ax1, sprintf('Land motion used for every land cell (radar; far gaps filled: %s); black = highway', cfg.insarFarFill));
 ax2 = nexttile(tl);
 w0 = bathtub_flood(Z, M, h(years == 2100), cfg);
 w1 = false(size(Z));
@@ -145,7 +158,7 @@ imagesc(ax2, xs, ys, cls(1:st:end, 1:st:end));
 axis(ax2, 'xy'); set(ax2, 'DataAspectRatio', [1 cosd(6.45) 1]);
 colormap(ax2, [0.75 0.85 0.95; 0.93 0.93 0.9; 0.2 0.4 0.8; 0.85 0.2 0.15]); clim(ax2, [-0.5 3.5]);
 hold(ax2, 'on'); plot(ax2, lon(1, rJ), lat(rI, 1), 'k.', 'MarkerSize', 2); hold(ax2, 'off');
-title(ax2, sprintf(['Land under the mean sea level of 2100 (SSP2-4.5 median): blue = bathtub M0 (%.0f km^2), ' ...
+title(ax2, sprintf(['Land reached by water at the mean sea level of 2100 (SSP2-4.5 median): blue = bathtub M0 (%.0f km^2), ' ...
     'red = added by measured sinking (%.0f km^2)'], sum(cell_area_km2(R) .* w0, 'all'), ...
     sum(cell_area_km2(R) .* (w1 & ~w0), 'all')));
 xlabel(ax2, 'Longitude (deg E)'); ylabel(ax1, 'Latitude (deg N)'); ylabel(ax2, 'Latitude (deg N)');
