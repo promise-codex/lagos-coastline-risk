@@ -125,6 +125,10 @@ Measured sinking under each road km:
 
 ![Sinking along the road](docs/figures/insar_road_profile.png)
 
+Land reached by water at the mean sea level of 2100 (SSP2-4.5 median), with no sinking (blue, M0) and the extra land reached once the measured sinking is applied cell by cell (red, M1). Black line = highway:
+
+![Flooding with measured sinking](docs/figures/fullmap_sinking_2100.png)
+
 Route and 1 km segments used in the analysis:
 
 ![Highway segments](docs/figures/highway_segments.png)

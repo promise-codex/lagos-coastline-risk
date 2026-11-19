@@ -141,7 +141,8 @@ fig = figure('Color', 'w', 'Position', [60 60 1250 820]);
 tl = tiledlayout(fig, 2, 1, 'TileSpacing', 'compact');
 ax1 = nexttile(tl);
 Vp = 1000 * double(V); Vp(~land) = NaN; Vp = Vp(1:st:end, 1:st:end);
-imagesc(ax1, xs, ys, Vp, 'AlphaData', ~isnan(Vp)); set(ax1, 'Color', [0.75 0.85 0.95]);   % water shown light blue axis(ax1, 'xy'); set(ax1, 'DataAspectRatio', [1 cosd(6.45) 1]);
+imagesc(ax1, xs, ys, Vp, 'AlphaData', ~isnan(Vp)); set(ax1, 'Color', [0.75 0.85 0.95]);   % water shown light blue
+axis(ax1, 'xy'); set(ax1, 'DataAspectRatio', [1 cosd(6.45) 1]);
 colormap(ax1, flipud(redblue(256))); clim(ax1, [-20 20]);
 cb = colorbar(ax1); cb.Label.String = 'mm/yr (negative = sinking)';
 hold(ax1, 'on'); [rI, rJ] = ind2sub(size(Z), road.idx);
