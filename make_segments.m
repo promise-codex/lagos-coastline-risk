@@ -1,24 +1,35 @@
-%MAKE_SEGMENTS Build a single highway centreline and cut it into 1 km segments.
-%   Uses the "Lagos Coastal Highway" ways saved by get_osm_features. The
+%MAKE_SEGMENTS Build the highway centreline and cut it into 1 km segments.
+%   Uses the coastal highway ways saved by get_osm_features. The
 %   road has two carriageways in places, so the pieces are merged into one
 %   centreline by averaging latitude in narrow longitude bins (the road
-%   runs roughly west to east along the coast). Chainage 0 is the
-%   westernmost mapped point, which is close to, but not exactly, the
-%   assessment's CH 0+000 at Ahmadu Bello Way, Victoria Island Annex.
+%   runs roughly west to east along the coast).
+%
+%   OpenStreetMap does not yet map the whole road. Short holes (up to
+%   maxFillKm) are bridged with a straight line. Longer gaps are only used
+%   to carry the chainage across (straight line, so chainage beyond a gap
+%   is approximate) and every point in them is flagged as unmapped. Road
+%   results are only reported for mapped points. For the unmapped parts,
+%   use the coastal corridor results from run_m0_bathtub instead.
+%
+%   Chainage 0 is the westernmost mapped point, which is close to, but not
+%   exactly, the assessment's CH 0+000 at Ahmadu Bello Way.
 %
 %   Output: data/osm/highway_segments.mat with
-%     centre   table of centreline points (lat, lon, chainage_km, gap)
-%     segs     table of 1 km segments
-%     samples  struct with points every 30 m along the road, for sampling grids
+%     centre   table of centreline points (lat, lon, chainage_km, mapped)
+%     segs     table of 1 km segments, with the share of each that is mapped
+%     samples  struct with points every 30 m along the road (mapped flag included)
+%     stretches table of continuous mapped stretches
 
 cfg = project_config();
 S = load(fullfile(cfg.osmDir, 'osm_features.mat'), 'features');
 f = S.features;
 
-isRoad = strcmp({f.name}, 'Lagos Coastal Highway') & ...
+% Names seen so far: "Lagos Coastal Highway"; further east OSM may use
+% "Lagos-Calabar Coastal Highway", so match either
+isRoad = ~cellfun(@isempty, regexpi({f.name}, 'coastal highway|calabar', 'once')) & ...
          (contains({f.kind}, 'highway=trunk') | contains({f.kind}, 'highway=construction'));
 road = f(isRoad);
-fprintf('Using %d highway pieces.\n', numel(road));
+fprintf('Using %d highway pieces, named: %s\n', numel(road), strjoin(unique({road.name}), ' | '));
 
 lat = vertcat(road.lat);
 lon = vertcat(road.lon);
@@ -26,67 +37,103 @@ ok  = ~isnan(lat) & ~isnan(lon);
 lat = lat(ok); lon = lon(ok);
 
 % ---- Merge carriageways into one centreline -------------------------------
-binWidth = 0.002;                              % degrees of longitude (about 220 m)
+binWidth  = 0.002;                              % degrees of longitude (about 220 m)
+maxFillKm = 0.5;                                % holes up to this length are bridged
 edges = (floor(min(lon)/binWidth)*binWidth) : binWidth : (ceil(max(lon)/binWidth)*binWidth + binWidth);
 [~, ~, bin] = histcounts(lon, edges);
-nb = numel(edges) - 1;
+nb   = numel(edges) - 1;
 cLon = edges(1:end-1)' + binWidth/2;
 cLat = accumarray(bin, lat, [nb 1], @mean, NaN);
 
-% Bins with no mapped road are gaps: fill by straight-line interpolation
-gap = isnan(cLat);
-cLat(gap) = interp1(cLon(~gap), cLat(~gap), cLon(gap), 'linear');
-keep = ~isnan(cLat);                           % drops empty bins beyond the ends
-cLat = cLat(keep); cLon = cLon(keep); gap = gap(keep);
+empty  = isnan(cLat);
+cLat(empty) = interp1(cLon(~empty), cLat(~empty), cLon(empty), 'linear');
+keep = ~isnan(cLat);                            % drops empty bins beyond the ends
+cLat = cLat(keep); cLon = cLon(keep); empty = empty(keep);
 
 % Light smoothing to remove zig-zag between the two carriageways
-cLat = smoothdata(cLat, 'movmean', 3);
+% (only mapped bins are smoothed, so gap lines stay straight)
+sm = smoothdata(cLat, 'movmean', 3);
+cLat(~empty) = sm(~empty);
 
 % ---- Chainage ---------------------------------------------------------------
 E = wgs84Ellipsoid('meter');
 step = distance(cLat(1:end-1), cLon(1:end-1), cLat(2:end), cLon(2:end), E);
-ch = [0; cumsum(step)] / 1000;                 % km
-centre = table(cLat, cLon, ch, gap, 'VariableNames', {'lat', 'lon', 'chainage_km', 'gap'});
+ch = [0; cumsum(step)] / 1000;                  % km
 
-totalKm = ch(end);
-gapKm = sum(step(gap(1:end-1) | gap(2:end))) / 1000;
-fprintf('Centreline length: %.2f km, of which %.2f km is interpolated across unmapped gaps.\n', totalKm, gapKm);
+% Empty runs shorter than maxFillKm count as mapped (small holes in OSM)
+mapped = ~empty;
+runs = findRuns(empty);
+for r = 1:size(runs, 1)
+    a = max(runs(r,1) - 1, 1); b = min(runs(r,2) + 1, numel(ch));
+    if ch(b) - ch(a) <= maxFillKm
+        mapped(runs(r,1):runs(r,2)) = true;
+    end
+end
+centre = table(cLat, cLon, ch, mapped, 'VariableNames', {'lat', 'lon', 'chainage_km', 'mapped'});
+
+% Continuous mapped stretches
+mr = findRuns(mapped);
+stretches = table(ch(mr(:,1)), ch(mr(:,2)), cLon(mr(:,1)), cLon(mr(:,2)), ...
+    'VariableNames', {'from_km', 'to_km', 'from_lon', 'to_lon'});
+stretches.length_km = stretches.to_km - stretches.from_km;
+
+totalKm  = ch(end);
+mappedKm = sum(stretches.length_km);
+fprintf('Centreline from %.3f E to %.3f E: %.2f km, of which %.2f km is mapped in OpenStreetMap.\n', ...
+    cLon(1), cLon(end), totalKm, mappedKm);
+fprintf('Mapped stretches:\n');
+disp(stretches)
 
 % ---- Sample points every 30 m (matches the 30 m elevation grid) ------------
 sCh = (0:0.03:totalKm)';
 samples.chainage_km = sCh;
-samples.lat = interp1(ch, cLat, sCh);
-samples.lon = interp1(ch, cLon, sCh);
+samples.lat    = interp1(ch, cLat, sCh);
+samples.lon    = interp1(ch, cLon, sCh);
+samples.mapped = interp1(ch, double(mapped), sCh, 'nearest') > 0.5;
 
 % ---- 1 km segments ----------------------------------------------------------
 startKm = (0:floor(totalKm))';
 startKm = startKm(startKm < totalKm);
 endKm = min(startKm + 1, totalKm);
 midKm = (startKm + endKm) / 2;
+segOf = discretize(sCh, [startKm; endKm(end)]);
+mappedFrac = accumarray(segOf, double(samples.mapped), [numel(startKm) 1], @mean, 0);
 segs = table((1:numel(startKm))', startKm, endKm, ...
-    interp1(ch, cLat, midKm), interp1(ch, cLon, midKm), ...
-    'VariableNames', {'segment', 'start_km', 'end_km', 'lat_mid', 'lon_mid'});
+    interp1(ch, cLat, midKm), interp1(ch, cLon, midKm), mappedFrac, ...
+    'VariableNames', {'segment', 'start_km', 'end_km', 'lat_mid', 'lon_mid', 'mapped_frac'});
 
-save(fullfile(cfg.osmDir, 'highway_segments.mat'), 'centre', 'segs', 'samples');
+save(fullfile(cfg.osmDir, 'highway_segments.mat'), 'centre', 'segs', 'samples', 'stretches');
 writetable(segs, fullfile(cfg.resultsDir, 'highway_segments.csv'));
+writetable(stretches, fullfile(cfg.resultsDir, 'highway_mapped_stretches.csv'));
 
 % ---- Map ----------------------------------------------------------------------
-fig = figure('Color', 'w', 'Position', [100 100 1100 450]);
+fig = figure('Color', 'w', 'Position', [100 100 1200 450]);
 gx = geoaxes(fig);
 geobasemap(gx, 'satellite');
 hold(gx, 'on');
 for k = 1:numel(road)
     geoplot(gx, road(k).lat, road(k).lon, '-', 'Color', [1 1 0], 'LineWidth', 1);
 end
-geoplot(gx, centre.lat, centre.lon, 'c-', 'LineWidth', 2);
-geoplot(gx, centre.lat(centre.gap), centre.lon(centre.gap), 'r.', 'MarkerSize', 10);
+gLat = centre.lat; gLat(~centre.mapped) = NaN;     % break the line at gaps
+geoplot(gx, gLat, centre.lon, 'c-', 'LineWidth', 2.5);
+geoplot(gx, centre.lat(~centre.mapped), centre.lon(~centre.mapped), 'r.', 'MarkerSize', 6);
 every5 = segs.start_km(mod(segs.start_km, 5) == 0);
 for k = 1:numel(every5)
     i = segs.segment(segs.start_km == every5(k));
-    text(gx, segs.lat_mid(i), segs.lon_mid(i), sprintf(' %d km', every5(k)), ...
+    text(gx, segs.lat_mid(i), segs.lon_mid(i), sprintf(' %d', every5(k)), ...
         'Color', 'w', 'FontWeight', 'bold');
 end
 hold(gx, 'off');
-title(gx, sprintf('Highway centreline (cyan), unmapped gaps (red), %.1f km', totalKm));
+geolimits(gx, cfg.latlim, cfg.lonlim);
+title(gx, sprintf(['Highway in OpenStreetMap: mapped (cyan, %.1f km), straight line across gaps (red), ' ...
+    'km labels every 5 km'], mappedKm));
 exportgraphics(fig, fullfile(cfg.figDir, 'highway_segments.png'), 'Resolution', 200);
-fprintf('Saved %d segments to %s\n', height(segs), fullfile(cfg.osmDir, 'highway_segments.mat'));
+fprintf('Saved %d segments (%d fully mapped) to %s\n', height(segs), sum(segs.mapped_frac == 1), ...
+    fullfile(cfg.osmDir, 'highway_segments.mat'));
+
+% -------------------------------------------------------------------------
+function runs = findRuns(tf)
+% Start and end index of each run of true values in a logical vector.
+d = diff([false; tf(:); false]);
+runs = [find(d == 1), find(d == -1) - 1];
+end

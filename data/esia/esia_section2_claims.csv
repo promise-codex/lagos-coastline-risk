@@ -1,0 +1,21 @@
+id,topic,claim,value,unit,page,source_cited_in_ESIA,note
+S2-C1,scope,Section 2 runs from Eleko (km 47) to Ode-Omi (km 104),56.5,km,xxvi,,"56.5 = 104 minus 47.5. Same report also gives the length as 55.6 km (p. xxvi), 56 km (p. xxxii) and 53 km (p. 4-1); page headers in Chapter 4 say 54 km to 107 km"
+S2-C2,sea level,NASA 2100 sea-level rise for Lagos under SSP1-1.9,0.42,m,4-93,NASA,Same text and values as Section 1 p. 4-76
+S2-C3,sea level,NASA 2100 sea-level rise for Lagos under SSP1-2.6,0.47,m,4-93,NASA,Same as Section 1
+S2-C4,sea level,NASA 2100 sea-level rise for Lagos under SSP2-4.5,0.60,m,4-93,NASA,Same as Section 1
+S2-C5,sea level,NASA 2100 sea-level rise for Lagos under SSP5-8.5,0.84,m,4-93,NASA,Same as Section 1
+S2-C6,sea level,Sea-level rise at 1.5 / 2.0 / 3.0 / 4.0 / 5.0 C warming,0.48 / 0.55 / 0.65 / 0.75 / 0.86,m,4-93,NASA (implied),Year not stated in the text
+S2-C7,sea level,A 0.5 m rise around the Lagos coast will not affect the road,0.5,m,4-95,Climate Central Coastal Risk Screening Tool,Same sentence as Section 1 p. 4-77
+S2-C8,sea level,The elevation and design of the road are sufficient to withstand a moderate rise in sea level,,,4-95,,No road or embankment height is given
+S2-C9,flood risk,Flood risk area in the Section 2 corridor: very low / low / moderate / high / very high,0 / 0 / 1022.34 / 4981.07 / 3873.15,ha,4-96,Natural Eco Capital fieldwork April 2024,"Identical numbers and place names to Section 1 Table 4.20 (p. 4-79). The places listed (Oniru, Jakande, Marwa, Sangotedo, Mosere Ikoga, Igando) lie west of Eleko, in Section 1"
+S2-C10,flood risk,Total flood risk area in the corridor,9876.56,ha,4-97,,"Table total row prints 976.56; the sentence beside it says 9876.56; the five classes sum to 9876.56"
+S2-C11,flood risk,Folu to Akodo-Ise and beyond are prone to high to very high flood risk,,,4-27,,"Separate flood risk map (Fig. 4.25), different from Table 4.21"
+S2-C12,elevation,Most locations in south-east Lagos lie between 0 and 5 m above mean sea level,0 to 5,m,4-27,contour map,
+S2-C13,subsidence,Loose sediments can lead to ground subsidence,,,4-28,,Mentioned only as a construction risk; no rate given
+S2-C14,shoreline,Net shoreline movement and end point rate 1986-2024 per community,see note,m and m/yr,4-89,own DSAS analysis,"Eleko +116.07 m / +3.05 m/yr; Ilado -46.01 / -1.21; Mobido -57.04 / -1.50; Akodo-Ise -106.3 / -2.80; La Campaigne -57.51 / -1.51; Ode-Omi -202.36 / -5.33; Ebute-Lekki +393.72 / +10.36; Orimedu +78.01 / +2.05; Akodo -33.45 / -0.88; Itamarun -56.78 / -1.49; Ilagbo -16.3 / -0.43; Ololu -16.98 / -0.45; Folu -67.03 / -1.76; Igbogun +12.96 / +0.34. EPR = NSM / 38 yr checks out for all rows"
+S2-C15,shoreline,Eroding beaches lie between Ebute-Lekki and about 9 km beyond Akodo-Ise,,,4-88,own DSAS analysis,
+S2-C16,shoreline,Erosion east of the two ports began less than ten years ago and became noticeable after the ports were built,,,4-73,community leaders,Interview evidence
+S2-C17,shoreline,Ibeju-Lekki maximum / average erosion rate,6.28 / 1.37,m/yr,4-76,Fasae et al. (2022),Google Earth 1984-2021
+S2-C18,shoreline,Eti-Osa average / maximum erosion rate,8.88 / 2.66,m/yr,4-76,Fasae et al. (2022),"Order looks swapped (average larger than maximum); p. 4-74 calls 8.88 m/yr the rate at the highest erosion distance"
+S2-C19,shoreline,Annual erosion rate by period (Bar Beach area),1.53 to 22.29,m/yr,4-73,not stated,Net change column is in m3/m; how the m/yr rates follow from it is not explained
+S2-C20,waves,Wave height and period at 8 Section 2 beaches,1.46 to 1.50 m; 9.13 to 9.63 s,,4-82,not stated,"Wave power column gives 16.16 to 16.85 kW/m. Deep-water formula P = rho g^2 H^2 T / (64 pi) gives about 9.5 to 10.6 kW/m for these heights and periods, so the method behind the power values is unclear"
