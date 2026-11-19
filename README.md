@@ -62,6 +62,7 @@ that covers the full 104 km.
 - Lagos Lagoon and connected creeks count as sea (tidal, open to the ocean). Water reaches land only through connected cells (8-connectivity).
 - Land sinking in M1 is uniform across the area. Uniform sinking is equivalent to an equal extra sea-level rise in a bathtub model. Spatially varying sinking comes later.
 - M3 adds tide and storm levels from GTSM (1985-2014) as fixed heights above each year's mean sea level; changes in storminess are not included. The 95% upper bounds of these return levels at Lagos are unrealistically large (tens of metres) from the bootstrap fit, so only the best fit is used.
+- Tide and storm peaks enter from the open sea only. Lagoon water follows the mean sea level but not the ocean tide or surge (lower bound); the run also prints the upper bound where the lagoon gets the full ocean peak.
 - A bathtub fills every connected low cell to the event peak. Real storm peaks last hours, so flooding inland of the shore is overstated for short events; results for the road are the year the water can first reach it, not a prediction of damage.
 - Road points over water (bridges) are left out.
 

@@ -13,6 +13,18 @@
 %   A segment is reached when h(t) + E >= its flood level, i.e. when
 %   h(t) >= flood level - E, so the M1 machinery is reused with a shifted level.
 %
+%   Two water sources (step 3 refinement):
+%     ocean   tide and storm levels apply; water spreads only from the
+%             open sea over land (flood_level_map with seed class 1)
+%     lagoon  Lagos and Lekki lagoons and creeks follow the mean sea level
+%             (rise plus sinking) but NOT the ocean tide or storm peak.
+%             The lagoons are damped: the narrow harbour mouth passes
+%             only part of the ocean tide, and less still reaches Lekki
+%             Lagoon (to be backed by a published source in the README). Treating lagoon water as getting
+%             no tide is the simple lower bound; the single-source result
+%             (lagoon gets the full ocean peak) is printed as the upper bound.
+%   A segment is reached in the first year either source reaches it.
+%
 %   Needs: results/flood_level_map.mat (made by run_m1_sinking) and
 %   data/gtsm/gtsm_lagos_stations.csv (coastal GTSM points from the
 %   downloaded NetCDF files; see extract_gtsm.m to rebuild it).
@@ -20,6 +32,19 @@
 cfg = project_config();
 S = load(fullfile(cfg.resultsDir, 'flood_level_map.mat'), 'FL', 'R');
 FL = S.FL; R = S.R;
+
+% Ocean-only flood-level map (built once, then saved)
+flOceanFile = fullfile(cfg.resultsDir, 'flood_level_map_ocean.mat');
+if isfile(flOceanFile)
+    S2 = load(flOceanFile, 'FLo'); FLo = S2.FLo;
+else
+    [Z, M] = load_dem(cfg);
+    cfgO = cfg; cfgO.waterSeedClasses = 1;
+    fprintf('Building the ocean-only flood-level map...\n');
+    FLo = flood_level_map(Z, M, cfg.floodLevels, cfgO);
+    save(flOceanFile, 'FLo', '-v7.3');
+    clear Z M
+end
 
 % ---- AR6 curves (same as step 2) ---------------------------------------------
 C = readcell(cfg.slrFile, 'Sheet', 'Total');
@@ -46,16 +71,20 @@ nEv = size(events, 1);
 H = load(fullfile(cfg.osmDir, 'highway_segments.mat'), 'segs', 'samples');
 [I, J] = geographicToDiscrete(R, H.samples.lat, H.samples.lon);
 use = ~isnan(I) & ~isnan(J) & H.samples.mapped(:);
-fl = double(FL(sub2ind(size(FL), I(use), J(use))));   % NaN over water (bridges) is ignored
+idx = sub2ind(size(FL), I(use), J(use));
 segOf = discretize(H.samples.chainage_km(use), [H.segs.start_km; H.segs.end_km(end)]);
 nSeg = height(H.segs);
-segLevel = accumarray(segOf, fl, [nSeg 1], @min, NaN);
+% NaN over water (bridges) is ignored by min
+segLevel  = accumarray(segOf, double(FL(idx)),  [nSeg 1], @min, NaN);   % any water source
+segOcean  = accumarray(segOf, double(FLo(idx)), [nSeg 1], @min, NaN);   % open sea only
+segOcean(isnan(segOcean) & ~isnan(segLevel)) = Inf;
 [~, nearest] = min(abs(H.segs.lon_mid - G.lon'), [], 2);   % nearest point along the coast
 
 % ---- First year reached ----------------------------------------------------------
 rates = cfg.subsidence_mm_yr;
 out = H.segs(:, {'segment', 'start_km', 'end_km', 'lat_mid', 'lon_mid'});
-out.ground_level_m = segLevel;
+out.flood_level_any_m   = segLevel;
+out.flood_level_ocean_m = segOcean;
 fprintf('\nRoad segments (of %d) reached by the water, AR6 median\n', sum(~isnan(segLevel)));
 fprintf('%-8s %-18s %-11s %6s %8s %8s %8s %8s\n', 'Scenario', 'Event', 'Sinking', 'today', 'by 2030', 'by 2050', 'by 2100', 'first');
 firstYr = cell(size(cases, 1), nEv, numel(rates));
@@ -64,7 +93,14 @@ for c = 1:size(cases, 1)
         E = events{e, 2}(nearest);
         for r = 1:numel(rates)
             h = (slr(c, :) - slr(c, cfg.years == cfg.refYear)) + rates(r) / 1000 * (cfg.years - cfg.refYear);
-            yr = firstYearReached(segLevel - E, h, cfg.years);
+            yrOcean  = firstYearReached(segOcean - E, h, cfg.years);
+            yrLagoon = firstYearReached(segLevel, h, cfg.years);
+            yr = min(yrOcean, yrLagoon);
+            if c == 1 && r == 1 && e > 1
+                yrUpper = firstYearReached(segLevel - E, h, cfg.years);
+                fprintf('  (upper bound, lagoon gets the full ocean peak: %s reaches %d segments today)\n', ...
+                    events{e, 1}, sum(yrUpper <= cfg.refYear));
+            end
             firstYr{c, e, r} = yr;
             name = matlab.lang.makeValidName(sprintf('year_%s_%s_sink%smm', cases{c, 2}, ...
                 events{e, 1}, strrep(sprintf('%g', rates(r)), '.', 'p')));
@@ -94,7 +130,7 @@ hold(ax, 'off');
 ylim(ax, [cfg.refYear max(cfg.years)]); grid(ax, 'on');
 xlabel(ax, 'Chainage along the highway (km)');
 ylabel(ax, 'First year the water reaches the route');
-title(ax, 'Each added process brings the first wet year forward (AR6 SSP2-4.5 median)');
+title(ax, 'Each added process brings the first wet year forward (AR6 SSP2-4.5 median; tide and storm from the ocean side only)');
 legend(ax, 'Location', 'southoutside', 'Orientation', 'horizontal');
 exportgraphics(fig, fullfile(cfg.figDir, 'm3_method_ladder.png'), 'Resolution', 200);
 fprintf('\nSaved results/m3_road_first_wet_year.csv and figures/m3_method_ladder.png\n');
