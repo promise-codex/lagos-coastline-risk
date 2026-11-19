@@ -52,14 +52,19 @@ built = Rt.flag ~= "" & ~ismissing(Rt.flag);
 Y(built, :) = NaN;
 
 cal = ly <= 2010; val = ly >= 2012;
-yStart = Y(:, ly == 2009);
+y2009 = Y(:, ly == 2009);
 
 % ---- Trend per km from the calibration epochs ------------------------------------------
-r = nan(nSeg, 1);
+r = nan(nSeg, 1); yStart = nan(nSeg, 1);
+% The test starts from the 2009 position on the fitted line, not from the
+% single 2009 epoch: one epoch can sit on another water edge (the first
+% run, started from the raw epoch, gave errors of about 100 m for all
+% forecasts alike).
 for k = 1:nSeg
     ok = cal & ~isnan(Y(k, :));
-    if sum(ok) >= 4 && ~isnan(yStart(k))
+    if sum(ok) >= 4 && ~isnan(y2009(k))
         b = robustfit(ly(ok)', Y(k, ok)'); r(k) = b(2);
+        yStart(k) = b(1) + b(2) * 2009;                       % start of the test: the fitted 2009 position
     end
 end
 use = ~isnan(r);
@@ -125,10 +130,11 @@ ok = use & ~isnan(rAss);
 mse = @(Ym, m) mean((Ym(m, :) - obsVal(m, :)).^2, 'all', 'omitnan');
 mse0 = mean(obsVal(use, :).^2, 'all', 'omitnan');
 fprintf('\nHindcast 2012-2025 (%d km), error in shoreline change since 2009:\n', sum(use));
-fprintf('  %-34s %8s %8s\n', 'forecast', 'RMSE (m)', 'skill');
-fprintf('  %-34s %8.1f %8.2f\n', 'no change', sqrt(mse0), 0);
-fprintf('  %-34s %8.1f %8.2f\n', 'trend only (D = 0, a = 0)', sqrt(mse(yTrend, use)), 1 - mse(yTrend, use) / mse0);
-fprintf('  %-34s %8.1f %8.2f\n', 'calibrated model', sqrt(mse(yModel, use)), 1 - mse(yModel, use) / mse0);
+mae = @(Ym, m) median(abs(Ym(m, :) - obsVal(m, :)), 'all', 'omitnan');
+fprintf('  %-34s %8s %8s %16s\n', 'forecast', 'RMSE (m)', 'skill', 'median error (m)');
+fprintf('  %-34s %8.1f %8.2f %16.1f\n', 'no change', sqrt(mse0), 0, mae(zeros(size(obsVal)), use));
+fprintf('  %-34s %8.1f %8.2f %16.1f\n', 'trend only (D = 0, a = 0)', sqrt(mse(yTrend, use)), 1 - mse(yTrend, use) / mse0, mae(yTrend, use));
+fprintf('  %-34s %8.1f %8.2f %16.1f\n', 'calibrated model', sqrt(mse(yModel, use)), 1 - mse(yModel, use) / mse0, mae(yModel, use));
 m0a = mean(obsVal(ok, :).^2, 'all', 'omitnan');
 fprintf('  on the %d km with an assessment rate: no change %.1f, assessment rate %.1f, calibrated model %.1f m\n', ...
     sum(ok), sqrt(m0a), sqrt(mse(yAss, ok)), sqrt(mse(yModel, ok)));

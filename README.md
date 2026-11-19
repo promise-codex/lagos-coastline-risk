@@ -83,21 +83,35 @@ Erosion on its own reaches only the few km where the beach is already close to t
 
 - A shoreline was found in 90% of km-years for Landsat and 87% for Sentinel-2.
 - Sentinel-2 and Landsat agree to within 14 m (median offset; robust spread 9 m; RMSE 18 m after leaving out the 2% of pairs that differ by more than 100 m, where the two sensors probably picked a different water edge).
-- Shoreline change 1984-2025 (linear regression, 98 km): median -0.73 m/yr (erosion), 10th to 90th percentile -3.1 to +4.7 m/yr. 39 km are eroding faster than 1 m/yr.
+- Shoreline change 1984-2025 (robust straight-line fit, 98 km): median -1.04 m/yr (erosion), 10th to 90th percentile -4.6 to +3.9 m/yr. 49 km are eroding faster than 1 m/yr. An ordinary least-squares fit gives a median of -0.73 m/yr and 39 km; the two differ by more than 1 m/yr at 26 km, where one or two epochs sit on another water edge. Over 2009-2025 alone the median is -1.32 m/yr (52 km faster than 1 m/yr), so erosion has not slowed. At km 100 to 108 (Ode-Omi end) the long-term rate shows growth, driven by the early epochs; this stretch is uncertain.
 - km 0 to 3, 65 and 75 advanced faster than 10 m/yr and are flagged as likely reclaimed land. The assessment's Ebute-Lekki point (km 75) also shows the fastest growth in Section 2 (+10.4 m/yr).
 - Against the Section 1 assessment's own rate bands (1986-2024, same period): our median falls inside the stated range in 5 of 7 bands, including the fastest erosion at CH 3+600 to 4+800 (-5.1 m/yr against -8 to -5 m/yr).
 - Against the Section 2 community rates the agreement is poor (same direction at 4 of 8 places; Ode-Omi -5.3 m/yr in the assessment, +3.3 m/yr here). The community positions are uncertain: several were placed from the assessment's soil sampling points, and Ilado lands on the same km as Eleko. This check is not settled.
 
+### Dangote refinery and Lekki Deep Sea Port (`run_assets`)
+
+Outlines from OpenStreetMap: Dangote Refinery (way 732777987, 2303 ha) and Lekki Deep Seaport (way 785409163, 85 ha). Inside them the elevation model shows land throughout (no water cells): refinery median 2.56 m (10th to 90th percentile 1.60 to 3.11 m, 6% below 1 m), port median 3.30 m (2.97 to 3.67 m). These heights look like raised ground, so the model appears to include the fill, but the age of the elevation data (see assumptions) means this is not certain.
+
+| Site | Scenario | Share of site under water | M0 bathtub | M1 measured sinking | M3 high tide | M3 10-year storm |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Dangote refinery | SSP2-4.5 | 1% | after 2150 | 2093 | 2106 | already today (2020) |
+| Dangote refinery | SSP2-4.5 | 10% | after 2150 | 2136 | 2125 | 2084 |
+| Dangote refinery | SSP5-8.5 | 1% | 2126 | 2089 | 2076 | already today (2020) |
+| Dangote refinery | SSP5-8.5 | 10% | after 2150 | 2123 | 2101 | 2078 |
+| Lekki port | both | 1% and 10% | after 2150 | after 2150 | after 2150 | after 2150 |
+
+The land under the refinery sinks at a median 5.5 mm/yr in the radar map; the port rises slightly (+2.9 mm/yr). The low edge of the refinery site (about 1% of it) is already within reach of a 10-year storm in the bathtub. Short storm peaks overstate inland flooding (see assumptions), so this is where a site survey should look first, not a forecast of damage.
+
 ### Uncertainty (2000 Monte Carlo runs per scenario)
 
-Each run draws a sea-level percentile (5th to 95th), an error on the radar sinking map (a GPS tie error with standard deviation 2.5 mm/yr, plus the local error of each cell), a Bruun factor (0 to 100) and an elevation model error (see assumptions). The table below is from before the elevation error was added and will be updated. Flooding is run on the whole elevation model for 2050 and 2100 and combined with the high tide, the lagoon level and erosion.
+Each run draws a sea-level percentile (5th to 95th), an error on the radar sinking map (a GPS tie error with standard deviation 2.5 mm/yr, plus the local error of each cell), a Bruun factor (0 to 100) and an elevation model error (see assumptions). Flooding is run on the whole elevation model for 2050 and 2100 and combined with the high tide, the lagoon level and erosion.
 
 | Scenario | Road km reached by 2050, median (5 to 95%) | By 2100, median (5 to 95%) | Main driver |
 | --- | --- | --- | --- |
-| SSP2-4.5 | 16 (4 to 19) | 34 (8 to 59) | sinking error, then sea-level percentile, then Bruun factor |
-| SSP5-8.5 | 16 (4 to 20) | 42 (13 to 66) | same order |
+| SSP2-4.5 | 15 (6 to 24) | 35 (12 to 63) | sinking error (rank correlation 0.90), sea-level percentile (0.31), elevation error (0.15), Bruun factor (0.03) |
+| SSP5-8.5 | 15 (7 to 24) | 43 (17 to 71) | same order (0.86, 0.38, 0.11, 0.02) |
 
-Even the 5th percentile result for 2100 (8 km) is above the bathtub answer (0 km).
+Adding the elevation model error widened the 2050 range (4 to 19 km before, 6 to 24 km now) and moved the medians by at most 1 km. Even the 5th percentile result for 2100 (12 km) is above the bathtub answer (0 km).
 
 The closed-form erosion formula used in these runs was checked against the Simulink model; the largest difference over 130 years was 0.000 m.
 
