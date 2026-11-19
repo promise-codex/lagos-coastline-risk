@@ -88,6 +88,22 @@ Erosion on its own reaches only the few km where the beach is already close to t
 - Against the Section 1 assessment's own rate bands (1986-2024, same period): our median falls inside the stated range in 5 of 7 bands, including the fastest erosion at CH 3+600 to 4+800 (-5.1 m/yr against -8 to -5 m/yr).
 - Against the Section 2 community rates the agreement is poor (same direction at 4 of 8 places; Ode-Omi -5.3 m/yr in the assessment, +3.3 m/yr here). The community positions are uncertain: several were placed from the assessment's soil sampling points, and Ilado lands on the same km as Eleko. This check is not settled.
 
+### Calibrating the Simulink shoreline model and testing it on later years (`calibrate_shoreline_model`)
+
+The model (dy/dt = r + a (P(t) - mean P) + D L y) was calibrated on our Landsat shorelines for 1986-2009 at 85 km (reclaimed km left out), with ERA5 yearly wave power P (6.6 to 9.7 kW/m). It was then run from the fitted 2009 position to 2025 and compared with the shorelines seen in 2012-2025.
+
+- Fitted: alongshore smoothing D = 0 (the lower bound) and wave effect a = 2.0 m/yr per kW/m. The wave term lowers the calibration error only from 6.3 to 6.2 m, so it is not supported by the data and should not be read as a measured effect.
+- Test, 2012-2025:
+
+| Forecast | RMSE (m) | Median error (m) | Skill vs no change |
+| --- | ---: | ---: | ---: |
+| No change from 2009 | 96.8 | 22.0 | 0 |
+| Trend 1986-2009 only | 97.7 | 22.1 | -0.02 |
+| Calibrated model (trend, waves, smoothing) | 98.5 | 24.8 | -0.03 |
+| Assessment rates (83 km) | 105.1 | | |
+
+None of the forecasts beats "no change". The median error (about 22 m) is close to the size of one Landsat pixel, and the RMSE is driven by a few km with sudden large moves. A likely reason the trend fails: the median rate was about 0 m/yr over 1986-2009 but -1.3 m/yr over 2009-2025, so the coast did not keep its earlier behaviour. Why it changed is not tested here; sand trapped by the new port and reclamation works is one possible cause. The practical result for M2: a rate measured over one period is a weak forecast for the next, so the erosion part of the method ladder (M2) carries more uncertainty than its Bruun range alone suggests. The forecasts in M2 still use the assessments' rates; using our 2009-2025 rates instead is a possible next step.
+
 ### U-Net water map compared with the water index (`unet_shorelines`)
 
 A U-Net (encoder depth 3, 16 first filters, 30 epochs, 25 minutes on the MATLAB Online CPU) was trained on 1296 patches (with flips) of the 2021 Sentinel-2 image, with ESA WorldCover 2021 water as labels. Every fourth 8 km block of coast (90 patches) was held out.
