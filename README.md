@@ -43,6 +43,7 @@ that covers the full 104 km.
 | `extract_gtsm.m` | Rebuilds the coastal extreme water level table from the Copernicus NetCDF files |
 | `data/gtsm/gtsm_lagos_stations.csv` | High tide and return water levels at 8 coastal points along Lagos (GTSM, ERA5, 1985-2014) |
 | `run_uncertainty.m` | Step 5: Monte Carlo (2000 runs) over sea-level quantile, sinking rate and Bruun factor; chance each road km is reached by 2050 and 2100; checks the closed-form shoreline solution against Simulink |
+| `CoastalRiskExplorer.m` | Interactive app: pick method, scenario, percentile, sinking, Bruun factor and year; map and chart of road km reached |
 | `get_place_coords.m` | Locates the Section 2 beach communities (OpenStreetMap, with the assessment's sampling points as fallback) |
 | `build_shoreline_model.m` | Builds the Simulink shoreline model `shoreline_model.slx` (dy/dt = r - B s(t) + D L y) |
 | `run_m2_shoreline.m` | Step 4: moving beach (M2) with the Simulink model, check against the assessment's erosion forecast, full method ladder |
