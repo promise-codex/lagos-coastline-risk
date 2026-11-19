@@ -171,9 +171,14 @@ writetable(out2, fullfile(cfg.resultsDir, 'm2_ladder_by_km.csv'));
 fig = figure('Color', 'w', 'Position', [100 100 1100 460]);
 ax = axes(fig); hold(ax, 'on');
 cols = lines(size(ladder, 1));
+% Different shapes and sizes so a method that gives the same year as the
+% one before it (often M1 and M2) still shows: larger open markers behind,
+% smaller filled markers in front.
+mk = {'o', 'o', '.', 'd', 's'}; ms = [5 9 12 5 5]; filled = [true false true true true];
 for i = 1:size(ladder, 1)
-    plot(ax, midKm, ladder{i, 2}, 'o', 'Color', cols(i, :), 'MarkerFaceColor', cols(i, :), ...
-        'MarkerSize', 4, 'DisplayName', ladder{i, 1});
+    if filled(i), fc = cols(i, :); else, fc = 'none'; end
+    plot(ax, midKm, ladder{i, 2}, mk{i}, 'Color', cols(i, :), 'MarkerFaceColor', fc, ...
+        'MarkerSize', ms(i), 'LineWidth', 1.2, 'DisplayName', ladder{i, 1});
 end
 hold(ax, 'off'); grid(ax, 'on');
 ylim(ax, [cfg.refYear max(cfg.years)]);

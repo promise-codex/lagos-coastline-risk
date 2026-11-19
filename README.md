@@ -92,6 +92,18 @@ Full claim lists with page numbers: `data/esia/esia_section1_claims.csv` and `da
 
 ### Figures
 
+First year each road km is reached, for every method (SSP2-4.5 median). Points missing for a method mean that km is not reached by 2150. Where M2 and M1 give the same year, the M2 point sits on the M1 point:
+
+![Method ladder](docs/figures/method_ladder_full.png)
+
+The same comparison for M0, M1 and M3 without erosion:
+
+![M3 method ladder](docs/figures/m3_method_ladder.png)
+
+Chance that each road km is reached by 2050 and by 2100 across 2000 Monte Carlo runs (SSP2-4.5):
+
+![Uncertainty SSP2-4.5](docs/figures/uncertainty_ssp245.png)
+
 Route and 1 km segments used in the analysis:
 
 ![Highway segments](docs/figures/highway_segments.png)
