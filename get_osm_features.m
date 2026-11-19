@@ -18,7 +18,27 @@ query = [ ...
 
 opts = weboptions('Timeout', 180, 'ContentType', 'json');
 fprintf('Querying OpenStreetMap (this can take up to a minute)...\n');
-resp = webread('https://overpass-api.de/api/interpreter', 'data', query, opts);
+% The public servers are often busy (502/504), so try a few mirrors, twice each
+servers = {'https://overpass-api.de/api/interpreter', ...
+           'https://overpass.private.coffee/api/interpreter', ...
+           'https://maps.mail.ru/osm/tools/overpass/api/interpreter'};
+resp = [];
+for attempt = 1:2
+    for s = 1:numel(servers)
+        try
+            resp = webread(servers{s}, 'data', query, opts);
+            fprintf('Answer from %s\n', servers{s});
+            break
+        catch err
+            fprintf('%s failed (%s). Trying the next server...\n', servers{s}, err.message(1:min(60,end)));
+            pause(5);
+        end
+    end
+    if ~isempty(resp), break, end
+end
+if isempty(resp)
+    error('get_osm_features:busy', 'All OpenStreetMap servers are busy. Wait a few minutes and run again.');
+end
 
 elements = resp.elements;
 if isstruct(elements)
