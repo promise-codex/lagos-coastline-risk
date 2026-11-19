@@ -80,8 +80,16 @@ segOcean  = accumarray(segOf, double(FLo(idx)), [nSeg 1], @(x) wetLevel(x, cfg.s
 segOcean(isnan(segOcean) & ~isnan(segLevel)) = Inf;
 [~, nearest] = min(abs(H.segs.lon_mid - G.lon'), [], 2);   % nearest point along the coast
 
+% ---- Land sinking cases -------------------------------------------------------------
+% The uniform rates in cfg.subsidence_mm_yr, plus the measured radar rate for
+% each road km (insar_segment_rates). Each case is a number (uniform) or a
+% vector with one rate per segment.
+Ti = insar_segment_rates(cfg, true);
+rates = [num2cell(cfg.subsidence_mm_yr), {Ti.sink_mm_yr}];
+rateTag = [arrayfun(@(x) strrep(sprintf('%g', x), '.', 'p'), cfg.subsidence_mm_yr, 'UniformOutput', false), {'InSAR'}];
+rateText = [arrayfun(@(x) sprintf('%5.1f mm/yr', x), cfg.subsidence_mm_yr, 'UniformOutput', false), {'measured   '}];
+
 % ---- First year reached ----------------------------------------------------------
-rates = cfg.subsidence_mm_yr;
 out = H.segs(:, {'segment', 'start_km', 'end_km', 'lat_mid', 'lon_mid'});
 out.flood_level_any_m   = segLevel;
 out.flood_level_ocean_m = segOcean;
@@ -92,7 +100,8 @@ for c = 1:size(cases, 1)
     for e = 1:nEv
         E = events{e, 2}(nearest);
         for r = 1:numel(rates)
-            h = (slr(c, :) - slr(c, cfg.years == cfg.refYear)) + rates(r) / 1000 * (cfg.years - cfg.refYear);
+            % water level at each segment: rows = segments (one row if the rate is uniform)
+            h = (slr(c, :) - slr(c, cfg.years == cfg.refYear)) + rates{r}(:) / 1000 .* (cfg.years - cfg.refYear);
             yrOcean  = firstYearReached(segOcean - E, h, cfg.years);
             yrLagoon = firstYearReached(segLevel, h, cfg.years);
             yr = min(yrOcean, yrLagoon);
@@ -103,9 +112,9 @@ for c = 1:size(cases, 1)
             end
             firstYr{c, e, r} = yr;
             name = matlab.lang.makeValidName(sprintf('year_%s_%s_sink%smm', cases{c, 2}, ...
-                events{e, 1}, strrep(sprintf('%g', rates(r)), '.', 'p')));
+                events{e, 1}, rateTag{r}));
             out.(name) = yr;
-            fprintf('%-8s %-18s %5.1f mm/yr %6d %8d %8d %8d %8s\n', cases{c, 2}, events{e, 1}, rates(r), ...
+            fprintf('%-8s %-18s %s %6d %8d %8d %8d %8s\n', cases{c, 2}, events{e, 1}, rateText{r}, ...
                 sum(yr <= cfg.refYear), sum(yr <= 2030), sum(yr <= 2050), sum(yr <= 2100), yearText(min(yr)));
         end
     end
@@ -113,9 +122,9 @@ end
 writetable(out, fullfile(cfg.resultsDir, 'm3_road_first_wet_year.csv'));
 
 % ---- Figure: the method ladder along the road (SSP2-4.5) ---------------------
-rMid = find(rates == 11.4, 1); if isempty(rMid), rMid = min(2, numel(rates)); end
+rMid = numel(rates);                                   % the measured radar rates
 ladder = {'M0: mean sea level, no sinking',              1, 1; ...
-          sprintf('M1: + sinking %g mm/yr', rates(rMid)), 1, rMid; ...
+          'M1: + measured sinking (radar)',              1, rMid; ...
           'M3: + high tide (MHHW)',                      2, rMid; ...
           'M3: + 10-year storm',                         4, rMid};
 fig = figure('Color', 'w', 'Position', [100 100 1100 450]);
@@ -137,10 +146,11 @@ fprintf('\nSaved results/m3_road_first_wet_year.csv and figures/m3_method_ladder
 
 % -------------------------------------------------------------------------
 function yr = firstYearReached(needed, h, years)
+% h: one row (same water level everywhere) or one row per segment
 yr = inf(size(needed));
 for i = 1:numel(needed)
     if isnan(needed(i)), yr(i) = NaN; continue, end
-    k = find(h >= needed(i), 1);
+    k = find(h(min(i, size(h, 1)), :) >= needed(i), 1);
     if ~isempty(k), yr(i) = years(k); end
 end
 end

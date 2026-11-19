@@ -2,8 +2,13 @@
 %   Each of N runs draws:
 %     u      a sea-level quantile, the same through time (AR6 5th to 95th
 %            percentile curves, linear between them; outside 5-95 is not sampled)
-%     s      land sinking rate, uniform between 0 and 34 mm/yr (the range of
-%            the published values used in step 2)
+%     s      land sinking rate for each road km: the radar rate measured
+%            under that km (insar_segment_rates) plus two errors,
+%              a GPS tie error, normal with sd cfg.insarDatumSigma, the
+%              same for every km (it shifts the whole map), and
+%              a local error, z * sigma_k, with one normal z per run for
+%              all km (fully correlated: the cautious choice, because it
+%              widens the spread of the km totals)
 %     B      Bruun factor, uniform between 0 and 100
 %   and finds, for every road km, the first year it is reached by the
 %   ordinary high tide (MHHW, ocean side), by the lagoon mean level, or by
@@ -21,6 +26,7 @@ N = 2000;
 rng(2026);                                              % repeatable draws
 T3 = readtable(fullfile(cfg.resultsDir, 'm3_road_first_wet_year.csv'));
 T2 = readtable(fullfile(cfg.resultsDir, 'm2_ladder_by_km.csv'));
+Ti = readtable(fullfile(cfg.resultsDir, 'insar_segment_rates.csv'));
 G  = readtable(fullfile(cfg.dataDir, 'gtsm', 'gtsm_lagos_stations.csv'));
 nSeg = height(T3);
 [~, nearest] = min(abs(T3.lon_mid - G.lon'), [], 2);
@@ -68,12 +74,15 @@ for sc = 1:numel(scen)
         Q(i, :) = interp1(arYears, cell2mat(C(row, yearCols)), years);
     end
     u = 0.05 + 0.90 * rand(N, 1);
-    s = 0.034 * rand(N, 1);
+    datum = cfg.insarDatumSigma * randn(N, 1);             % mm/yr, common to all km
+    zLoc = randn(N, 1);                                      % local error, in units of sigma
+    s = datum + zLoc * median(Ti.sigma_mm_yr);               % summary of the sinking draw, for the ranking below
     B = 100 * rand(N, 1);
     firstYr = inf(N, nSeg);
     for n = 1:N
         slr = interp1(q / 100, Q, u(n));                       % 1 x years
-        h = cummax((slr - slr(years == t0)) + s(n) * (years - t0));
+        sinkSeg = (Ti.sink_mm_yr + datum(n) + zLoc(n) * Ti.sigma_mm_yr) / 1000;   % m/yr, one per km
+        h = cummax((slr - slr(years == t0)) + sinkSeg .* (years - t0), 2);      % km x years
         tideYr = yearReached(lvlOcean - mhhw, h, years);
         lagoonYr = yearReached(lvlAny, h, years);
         extra = max(gradient(slr, years) - histRate, 0);
@@ -95,7 +104,7 @@ for sc = 1:numel(scen)
     fprintf('  km with at least 50%% chance of being reached by 2050: %d; by 2100: %d\n', ...
         sum(p2050 >= 0.5), sum(p2100 >= 0.5));
     [~, iS] = sort(abs(corr([u s B], km2100, 'Type', 'Spearman')), 'descend');
-    names = {'sea-level quantile', 'sinking rate', 'Bruun factor'};
+    names = {'sea-level quantile', 'sinking error (GPS tie + radar)', 'Bruun factor'};
     fprintf('  what drives the 2100 result most (rank correlation): %s, then %s, then %s\n', names{iS});
 
     T = T3(:, {'segment', 'start_km', 'end_km', 'lat_mid', 'lon_mid'});
@@ -118,7 +127,9 @@ fprintf('\nSaved results/uncertainty_*.csv and figures/uncertainty_*.png\n');
 % -------------------------------------------------------------------------
 function yr = yearReached(needed, h, years)
 % First year the non-decreasing curve h reaches each level (Inf if never).
-idx = sum(h(:)' < needed(:), 2) + 1;                  % count of years below the level
+% h: one row for everywhere, or one row per level in needed
+if isvector(h), h = h(:)'; end
+idx = sum(h < needed(:), 2) + 1;                      % count of years below the level
 yr = inf(numel(needed), 1);
 ok = idx <= numel(years) & ~isnan(needed(:));
 yr(ok) = years(idx(ok));

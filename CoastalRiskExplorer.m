@@ -1,7 +1,8 @@
 function CoastalRiskExplorer()
 %COASTALRISKEXPLORER Interactive app: which parts of the Lagos coastal highway the sea reaches, and when.
 %   Choose the method (M0 to M3), the IPCC scenario and percentile, the
-%   land sinking rate, the Bruun factor and a year. The map colours each
+%   land sinking (the rate measured by radar under each km, or one uniform
+%   rate from the slider), the Bruun factor and a year. The map colours each
 %   1 km of the route by whether it is reached by that year, and the chart
 %   shows how many km are reached over time for the chosen settings and
 %   for the bathtub method (M0) used in the assessment.
@@ -13,7 +14,7 @@ D = loadData(cfg);
 
 fig = uifigure('Name', 'Lagos Coastal Highway: Sea Reach Explorer', 'Position', [60 60 1250 720]);
 gl = uigridlayout(fig, [1 2]); gl.ColumnWidth = {300, '1x'};
-ctl = uigridlayout(gl, [16 1]); ctl.RowHeight = repmat({'fit'}, 1, 16);
+ctl = uigridlayout(gl, [17 1]); ctl.RowHeight = repmat({'fit'}, 1, 17);
 right = uigridlayout(gl, [2 1]); right.RowHeight = {'1.4x', '1x'};
 
 uilabel(ctl, 'Text', 'Method', 'FontWeight', 'bold');
@@ -24,28 +25,40 @@ uilabel(ctl, 'Text', 'IPCC AR6 scenario', 'FontWeight', 'bold');
 ddScen = uidropdown(ctl, 'Items', {'ssp126', 'ssp245', 'ssp585'}, 'Value', 'ssp245');
 uilabel(ctl, 'Text', 'Sea-level percentile', 'FontWeight', 'bold');
 ddQ = uidropdown(ctl, 'Items', {'5', '17', '50', '83', '95'}, 'Value', '50');
-lblSink = uilabel(ctl, 'Text', 'Land sinking: 11.4 mm/yr', 'FontWeight', 'bold');
+uilabel(ctl, 'Text', 'Land sinking', 'FontWeight', 'bold');
+ddSink = uidropdown(ctl, 'Items', {'Measured by radar, per km', 'Uniform (slider)'}, ...
+    'Value', 'Measured by radar, per km');
+lblSink = uilabel(ctl, 'Text', 'Uniform sinking: 11.4 mm/yr');
 slSink = uislider(ctl, 'Limits', [0 40], 'Value', 11.4, 'MajorTicks', 0:10:40);
 lblB = uilabel(ctl, 'Text', 'Bruun factor: 50 m per m', 'FontWeight', 'bold');
 slB = uislider(ctl, 'Limits', [0 100], 'Value', 50, 'MajorTicks', 0:25:100);
 lblYear = uilabel(ctl, 'Text', 'Year: 2050', 'FontWeight', 'bold');
 slYear = uislider(ctl, 'Limits', [2020 2150], 'Value', 2050, 'MajorTicks', 2020:30:2140);
 txt = uitextarea(ctl, 'Editable', 'off', 'Value', {''});
-uilabel(ctl, 'Text', 'Sources: DeltaDTM, IPCC AR6, GTSM (Copernicus), OpenStreetMap, highway ESIA (2024).', ...
+uilabel(ctl, 'Text', 'Sources: DeltaDTM, IPCC AR6, GTSM (Copernicus), Sentinel-1 (Copernicus, processed with ASF HyP3 and MintPy), NGL GPS, OpenStreetMap, highway ESIA (2024).', ...
     'WordWrap', 'on', 'FontSize', 10);
 
 gx = geoaxes(right); geobasemap(gx, 'satellite');
 ax = uiaxes(right);
 
-ctrls = {ddMethod, ddScen, ddQ, slSink, slB, slYear};
+ctrls = {ddMethod, ddScen, ddQ, ddSink, slSink, slB, slYear};
 for k = 1:numel(ctrls)
     ctrls{k}.ValueChangedFcn = @(~, ~) refresh();
 end
 refresh();
 
     function refresh()
-        sink = slSink.Value / 1000; B = slB.Value; yr = round(slYear.Value);
-        lblSink.Text = sprintf('Land sinking: %.1f mm/yr', slSink.Value);
+        B = slB.Value; yr = round(slYear.Value);
+        measured = startsWith(ddSink.Value, 'Measured');
+        slSink.Enable = ~measured;
+        if measured
+            sink = D.sinkMeasured / 1000;               % one rate per km
+            lblSink.Text = sprintf('Measured: median %.1f mm/yr (range %.1f to %.1f)', ...
+                median(D.sinkMeasured), min(D.sinkMeasured), max(D.sinkMeasured));
+        else
+            sink = slSink.Value / 1000;
+            lblSink.Text = sprintf('Uniform sinking: %.1f mm/yr', slSink.Value);
+        end
         lblB.Text = sprintf('Bruun factor: %.0f m per m', B);
         lblYear.Text = sprintf('Year: %d', yr);
         method = ddMethod.Value;
@@ -92,6 +105,8 @@ T2 = readtable(fullfile(cfg.resultsDir, 'm2_ladder_by_km.csv'));
 G  = readtable(fullfile(cfg.dataDir, 'gtsm', 'gtsm_lagos_stations.csv'));
 H  = load(fullfile(cfg.osmDir, 'highway_segments.mat'), 'segs', 'samples');
 D.segs = H.segs; D.samples = H.samples;
+Ti = readtable(fullfile(cfg.resultsDir, 'insar_segment_rates.csv'));
+D.sinkMeasured = Ti.sink_mm_yr;
 [~, nearest] = min(abs(T3.lon_mid - G.lon'), [], 2);
 D.event = struct('tide', G.MHHW_m(nearest), 'rp1', G.rp1_m(nearest), ...
                  'rp10', G.rp10_m(nearest), 'rp100', G.rp100_m(nearest));
@@ -117,7 +132,7 @@ end
 
 function first = firstYears(D, cfg, slr, sink, B, method)
 years = cfg.years; t0 = cfg.refYear;
-h = cummax((slr - slr(years == t0)) + sink * (years - t0));
+h = cummax((slr - slr(years == t0)) + sink(:) .* (years - t0), 2);   % one row, or one row per km
 lagoon = reachYear(D.lvlAny, h, years);
 if startsWith(method, 'M0') || startsWith(method, 'M1')
     first = lagoon; return
@@ -140,7 +155,8 @@ end
 end
 
 function yr = reachYear(needed, h, years)
-idx = sum(h(:)' < needed(:), 2) + 1;
+if isvector(h), h = h(:)'; end
+idx = sum(h < needed(:), 2) + 1;
 yr = inf(numel(needed), 1);
 ok = idx <= numel(years) & ~isnan(needed(:));
 yr(ok) = years(idx(ok));

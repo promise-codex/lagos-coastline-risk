@@ -60,6 +60,14 @@ cfg.slrCases = {'medium', 'ssp126', 50; ...
 %   34    lower bound given for Lekki and Victoria Island by
 %         Ikuemonisan (2025), Discover Environment 3:148
 cfg.subsidence_mm_yr = [0 5 11.4 34];
+% Measured land motion (step 2b). Vertical rate map from our own
+% Sentinel-1 radar processing, 2017-2025, tied to the UNILAG GPS stations
+% (see insar/README_insar.md). The uniform rates above are kept as a
+% sensitivity test; the method ladder and the Monte Carlo use this map.
+cfg.insarFile       = fullfile(cfg.dataDir, 'insar', 'lagos_vlm_s1_2017_2025.tif');
+cfg.insarBuffer_m   = 500;   % radar pixels within this distance of the road count for a segment
+cfg.insarMinPixels  = 10;    % fewer than this: search 3x wider, then fill from neighbours
+cfg.insarDatumSigma = 2.5;   % mm/yr, 1-sigma error of the GPS tie, common to all segments
 % A 1 km road segment counts as reached when at least this share of its
 % length is under water (10 percent = 100 m). Using the single lowest
 % point instead lets one low pixel (a creek, a ditch or a data error)

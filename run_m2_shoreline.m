@@ -12,7 +12,7 @@
 %   has moved back by the distance between today's shoreline and the
 %   closest 10% of that km. The ladder then combines:
 %     M0  bathtub, mean sea level only            (from run_m3_extremes)
-%     M1  + land sinking                           (from run_m3_extremes)
+%     M1  + land sinking, measured by radar per km (from run_m3_extremes)
 %     M2  + moving beach: earlier of M1 and erosion
 %     M3  + high tide / 10-year storm: earlier of M3 and erosion
 %
@@ -126,7 +126,7 @@ end
 T3 = readtable(fullfile(cfg.resultsDir, 'm3_road_first_wet_year.csv'));
 v = T3.Properties.VariableNames;
 col = @(a, b) T3.(v{contains(v, 'ssp245') & contains(v, a) & contains(v, b)});
-sinkTag = ['sink' strrep(sprintf('%g', 11.4), '.', 'p') 'mm'];
+sinkTag = 'sinkInSARmm';                                 % measured radar sinking per km
 M0 = col('MeanSeaLevel', 'sink0mm');
 M1 = col('MeanSeaLevel', sinkTag);
 M3tide  = col('MHHW', sinkTag);
@@ -138,7 +138,7 @@ M3t = min(M3tide, ero);
 M3s = min(M3storm, ero);
 
 ladder = {'M0 bathtub (assessment approach)', M0; ...
-          'M1 + sinking 11.4 mm/yr', M1; ...
+          'M1 + measured sinking (radar)', M1; ...
           'M2 + moving beach (B = 50)', M2; ...
           'M3 + ordinary high tide', M3t; ...
           'M3 + 10-year storm', M3s};

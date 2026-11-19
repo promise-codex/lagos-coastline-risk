@@ -3,7 +3,7 @@
 MATLAB and Simulink project for the MathWorks Global Student Challenge 2026
 (Sustainability and Renewable Energy: *Coastline Prediction using Existing Climate Change Models*).
 
-**Status:** first full version (M0 to M3, uncertainty runs and app). Still to add: own satellite measurements of land sinking and shoreline position, and a hindcast test of the shoreline model.
+**Status:** land sinking is now measured with our own Sentinel-1 radar processing (see `insar/README_insar.md`). The results tables below are still from the first version, which used a uniform 11.4 mm/yr, and will be replaced after the measured rates are run through M1 to M3. Still to add: own satellite shoreline positions and a hindcast test of the shoreline model.
 
 ## Key findings
 
@@ -130,6 +130,8 @@ MATLAB R2026b with Mapping, Image Processing, Statistics and Machine Learning To
 8. `run_uncertainty` runs the Monte Carlo.
 9. `CoastalRiskExplorer` opens the app.
 
+`run_after_insar` runs steps 6 to 8 again in one go, plus `gps_vertical_rate` and `check_spatial_sinking`, and saves a log. The radar map itself was made outside MATLAB (ASF HyP3 and MintPy, see `insar/README_insar.md`).
+
 Results are written to `results/` and figures to `results/figures/`.
 
 ## Repository layout
@@ -146,6 +148,12 @@ Results are written to `results/` and figures to `results/figures/`.
 | `run_m0_bathtub.m` | First M0 run at fixed sea-level values, with results per road segment and per corridor strip |
 | `flood_level_map.m` | Lowest water level at which each cell floods, so any sea-level curve converts to years |
 | `run_m1_sinking.m` | Step 2: IPCC AR6 sea level by year (M0) and with land sinking (M1); first wet year per road km and coastal strip |
+| `data/insar/lagos_vlm_s1_2017_2025.tif` | Vertical land motion map from Sentinel-1 radar, 2017-2025, tied to GPS (mm/yr, uncertainty, coherence) |
+| `insar/` | How the radar map was made: pair list, download script, MintPy settings, GPS tie and map scripts |
+| `insar_segment_rates.m` | Measured sinking rate and uncertainty for each road km from the radar map; map and profile figures |
+| `gps_vertical_rate.m` | Vertical rate of the UNILAG GPS stations ULAG and LAF1 (Nevada Geodetic Laboratory) |
+| `check_spatial_sinking.m` | Checks the one-rate-per-km shortcut against sinking the whole elevation model pixel by pixel |
+| `run_after_insar.m` | Re-runs every step that uses sinking, with a log |
 | `run_m3_extremes.m` | Step 3: adds high tide and 1, 10 and 100-year storm water levels (M3); method ladder figure |
 | `extract_gtsm.m` | Rebuilds the coastal extreme water level table from the Copernicus NetCDF files |
 | `data/gtsm/gtsm_lagos_stations.csv` | High tide and return water levels at 8 coastal points along Lagos (GTSM, ERA5, 1985-2014) |
@@ -167,6 +175,8 @@ Results are written to `results/` and figures to `results/figures/`.
 - IPCC AR6 sea-level projections (Fox-Kemper et al. 2021; Garner et al. 2021, version 20210809), CC BY 4.0, via the NASA Sea Level Projection Tool.
 - Copernicus Climate Change Service, Global sea level change indicators from 1950 to 2050 derived from reanalysis and high resolution CMIP6 climate projections, DOI 10.24381/cds.6edf04e0 (CC BY), GTSM v3 by Deltares.
 - OpenStreetMap, (c) OpenStreetMap contributors (ODbL), downloaded by `get_osm_features.m`.
+- Contains modified Copernicus Sentinel data 2017-2025, processed by ESA. Interferograms by ASF HyP3 (Hogenson et al. 2020, https://doi.org/10.5281/zenodo.4646138) with ISCE2; time series by MintPy (Yunjun et al. 2019, Computers & Geosciences 133, 104331).
+- GPS: Nevada Geodetic Laboratory (Blewitt et al. 2018, Eos 99), stations ULAG and LAF1.
 - Lagos-Calabar Coastal Highway Section 1 and Section 2 ESIA draft reports, Federal Ministry of Works (2024), public on the Federal Ministry of Environment website.
 
 ## Assumptions and limits
@@ -174,12 +184,12 @@ Results are written to `results/` and figures to `results/figures/`.
 - Elevations are metres above EGM2008, taken as mean sea level in 2020. The offset between EGM2008 and local mean sea level at Lagos is not yet applied.
 - Sea level rise is counted from 2020 using the IPCC AR6 curve for Lagos (relative to 1995-2014).
 - Lagos Lagoon and connected creeks count as sea (tidal, open to the ocean). Water reaches land only through connected cells (8-connectivity).
-- Land sinking in M1 is uniform across the area. Uniform sinking is equivalent to an equal extra sea-level rise in a bathtub model. Spatially varying sinking is not modelled.
+- Land sinking in M1 to M3 is the radar rate measured under each road km (median of the 80 m pixels within 500 m of the road), kept constant from 2020 onwards. Within a km it is treated as uniform, which is the same as an equal extra sea-level rise there; `check_spatial_sinking` tests this against sinking the whole elevation model pixel by pixel. The radar sees mostly buildings in built-up areas, so it may under-read sinking of open fill under the road there (see `insar/README_insar.md`). Uniform rates of 0, 5, 11.4 and 34 mm/yr are kept as sensitivity cases.
 - M3 adds tide and storm levels from GTSM (1985-2014) as fixed heights above each year's mean sea level; changes in storminess are not included. The 95% upper bounds of these return levels at Lagos are unrealistically large (tens of metres) from the bootstrap fit, so only the best fit is used.
 - Tide and storm peaks enter from the open sea only. Lagoon water follows the mean sea level but not the ocean tide or surge (lower bound); the run also prints the upper bound where the lagoon gets the full ocean peak.
 - A bathtub fills every connected low cell to the event peak. Real storm peaks last hours, so flooding inland of the shore is overstated for short events; results for the road are the year the water can first reach it, not a prediction of damage.
 - M2 uses the assessments' own measured shoreline change rates (1984-2024). Accretion is set to zero, because past gains came mostly from port and reclamation sand fill. Sea-level rise above the historical rate (3.25 mm/yr, global mean 1993-2018, IPCC AR6) adds retreat through the Bruun rule with factors 0, 50 and 100 m per m. The Bruun rule is a rough estimate and is often criticised (Cooper and Pilkey 2004), so it is shown as a range. Alongshore smoothing is off (D = 0) because no calibrated value exists here.
-- Uncertainty runs sample the AR6 5th to 95th percentile range only (tails beyond are not sampled), sinking uniformly between 0 and 34 mm/yr, and the Bruun factor between 0 and 100. Elevation model error is not sampled.
+- Uncertainty runs sample the AR6 5th to 95th percentile range only (tails beyond are not sampled), the measured sinking per km plus a GPS tie error (sd 2.5 mm/yr, same for all km) and a local error (one normal draw per run times each km's sigma, fully correlated along the road), and the Bruun factor between 0 and 100. Elevation model error is not sampled yet.
 - Our chainage starts at the westernmost mapped point of the road and lines up with the assessment chainage to within about 1 km.
 - Road points over water (bridges) are left out. A 1 km segment counts as reached when at least 10% of its length (100 m) is under water, so a single low pixel does not decide a whole kilometre.
 - Near km 50-54 (about 3.88-3.92 E) the elevation model shows two low channels (below 0.6 m) from the beach to the route. A channel from the beach inland is visible there on satellite imagery (checked on Google Maps, November 2026), so the low ground is real: the route crosses tidal wetland that is below today's high tide over a few hundred metres. A finished road would be raised or bridged here; the result means the design height at these crossings must account for the water levels below, which the assessment does not state.
@@ -189,6 +199,7 @@ Results are written to `results/` and figures to `results/figures/`.
 This project used generative AI as a working assistant, and every number in it comes from the data sources listed above, run in MATLAB and Simulink.
 
 - **Claude (Anthropic)** was used to scope the question, read the two highway assessments and list their claims with page numbers (so any reader can check each one in the PDF), draft the MATLAB scripts and the Simulink model builder, and debug errors from MATLAB runs. All code was run and checked in MATLAB Online by the author. Where the AI suggested a cause for a strange result (for example, the low stretch near Orimedu), the author checked it against satellite imagery before keeping it.
+- For the radar step, Claude chose the Sentinel-1 track and bursts with the author, submitted the 759 HyP3 jobs through the author's own signed-in ASF account, ran the download and MintPy processing in a cloud workspace, picked the GPS tie, and wrote the scripts in `insar/`. The settings and checks are listed in `insar/README_insar.md` so they can be repeated.
 - **What AI did not do:** it did not supply any data values. Sea-level, elevation, tide and shoreline numbers come only from the cited files and reports.
 
 ## Licence
