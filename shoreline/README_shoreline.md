@@ -44,6 +44,16 @@ MATLAB by `extract_shorelines.m`.
 Single-year Landsat composites for 1998-2012 were also made and checked;
 they are not stored because the 3-year epochs replace them.
 
+## For the U-Net (step 7)
+
+- `make_s2_band_composites.py`: yearly median Sentinel-2 reflectance of six
+  bands (B02, B03, B04, B08, B11, B12) at 20 m, same scenes and cloud mask
+  as above, coastal strip only.
+- `make_worldcover_labels.py`: ESA WorldCover 2020 and 2021 water class
+  (80) on the same 20 m grid (water if at least half of the 10 m cells are
+  water). WorldCover is made by ESA with its own classifier, so it is
+  independent of our water index, but it has its own errors.
+
 ## Commands
 
 ```
@@ -52,6 +62,8 @@ python make_mndwi_composites.py <out> landsat
 python make_mndwi_composites.py <out> landsat_pooled
 python make_mndwi_composites.py <out> sentinel2
 python clip_to_coast.py <out> ../data/shoreline
+python make_s2_band_composites.py ../data/shoreline ../data/shoreline/sentinel2_mndwi_2021.tif
+python make_worldcover_labels.py ../data/shoreline/sentinel2_bands_2021.tif ../data/shoreline
 ```
 
 Python 3.12 with numpy, rasterio, scipy, xarray, dask, odc-stac,

@@ -90,7 +90,7 @@ Erosion on its own reaches only the few km where the beach is already close to t
 
 ### Uncertainty (2000 Monte Carlo runs per scenario)
 
-Each run draws a sea-level percentile (5th to 95th), an error on the radar sinking map (a GPS tie error with standard deviation 2.5 mm/yr, plus the local error of each cell) and a Bruun factor (0 to 100). Flooding is run on the whole elevation model for 2050 and 2100 and combined with the high tide, the lagoon level and erosion.
+Each run draws a sea-level percentile (5th to 95th), an error on the radar sinking map (a GPS tie error with standard deviation 2.5 mm/yr, plus the local error of each cell), a Bruun factor (0 to 100) and an elevation model error (see assumptions). The table below is from before the elevation error was added and will be updated. Flooding is run on the whole elevation model for 2050 and 2100 and combined with the high tide, the lagoon level and erosion.
 
 | Scenario | Road km reached by 2050, median (5 to 95%) | By 2100, median (5 to 95%) | Main driver |
 | --- | --- | --- | --- |
@@ -166,6 +166,9 @@ MATLAB R2026b with Mapping, Image Processing, Statistics and Machine Learning To
 8. `run_uncertainty` runs the Monte Carlo.
 9. `CoastalRiskExplorer` opens the app.
 10. `extract_shorelines` measures our own shoreline at every road km from the Landsat and Sentinel-2 water-index composites in `data/shoreline/`, and compares the rates with the assessments'. The composites were made outside MATLAB (see `shoreline/README_shoreline.md`).
+11. `unet_shorelines` trains a U-Net water map on Sentinel-2 (labels from ESA WorldCover), tests it on held-out stretches of coast, and compares its shoreline with the water-index shoreline.
+12. `run_assets` runs the same flood methods on the land inside the Dangote site and Lekki Deep Sea Port outlines.
+13. `calibrate_shoreline_model` calibrates the Simulink shoreline model on our 1986-2009 shorelines (trend per km, alongshore smoothing, and the effect of ERA5 wave power from `data/era5/`) and tests it on 2012-2025.
 
 `run_after_insar` runs `gps_vertical_rate`, `run_fullmap_sinking` and steps 6 to 8 again in one go, and saves a log. The radar map itself was made outside MATLAB (ASF HyP3 and MintPy, see `insar/README_insar.md`).
 
@@ -204,6 +207,10 @@ Results are written to `results/` and figures to `results/figures/`.
 | `run_m2_shoreline.m` | Step 4: moving beach (M2) with the Simulink model, check against the assessment's erosion forecast, full method ladder |
 | `data/shoreline/` | Water-index (MNDWI) median composites of the coastal strip: Landsat 1986 (pooled 1984-1987), 3-year epochs 1998-2012, yearly 2013-2025; Sentinel-2 yearly 2016-2025 |
 | `shoreline/` | Python scripts that made the composites (Planetary Computer, odc-stac) and their notes |
+| `shore_transects.m`, `shore_position.m` | Transect at each road km, and the shoreline crossing on one transect (shared by steps 6 and 7) |
+| `calibrate_shoreline_model.m` | Step 9: calibration of the Simulink shoreline model (1986-2009) and hindcast test (2012-2025) against simple forecasts |
+| `run_assets.m` | Step 8: first year 1% and 10% of the Dangote site and the Lekki port are under water (M0, M1, M3); prints the elevation inside each outline |
+| `unet_shorelines.m` | Step 7: U-Net water map (Deep Learning Toolbox) against the water index, on the same images and transects |
 | `extract_shorelines.m` | Step 6: our own shoreline position at each road km per year, rates 1986-2025, checks against Sentinel-2, the assessments and the elevation model |
 | `data/esia/shoreline_rates_section1.csv`, `..._section2.csv` | Measured shoreline change rates from the assessments, with page numbers |
 | `diagnose_low_stretch.m` | Checks the lowest stretch of the route (ground heights, low channels) |
@@ -219,6 +226,8 @@ Results are written to `results/` and figures to `results/figures/`.
 - Copernicus Climate Change Service, Global sea level change indicators from 1950 to 2050 derived from reanalysis and high resolution CMIP6 climate projections, DOI 10.24381/cds.6edf04e0 (CC BY), GTSM v3 by Deltares.
 - OpenStreetMap, (c) OpenStreetMap contributors (ODbL), downloaded by `get_osm_features.m`.
 - Contains modified Copernicus Sentinel data 2017-2025, processed by ESA. Interferograms by ASF HyP3 (Hogenson et al. 2020, https://doi.org/10.5281/zenodo.4646138) with ISCE2; time series by MintPy (Yunjun et al. 2019, Computers & Geosciences 133, 104331).
+- ERA5 monthly averaged reanalysis on single levels (Hersbach et al. 2020), Copernicus Climate Change Service, DOI 10.24381/cds.f17050d7: significant wave height and mean wave period.
+- ESA WorldCover 10 m 2020 v100 and 2021 v200 (Zanaga et al. 2021, 2022; CC BY 4.0), water class used as U-Net labels.
 - Landsat Collection 2 Level-2 surface reflectance, courtesy of the U.S. Geological Survey. Contains modified Copernicus Sentinel-2 data 2016-2025 (Level-2A, ESA). Both read from the Microsoft Planetary Computer.
 - GPS: Nevada Geodetic Laboratory (Blewitt et al. 2018, Eos 99), stations ULAG and LAF1.
 - Lagos-Calabar Coastal Highway Section 1 and Section 2 ESIA draft reports, Federal Ministry of Works (2024), public on the Federal Ministry of Environment website.
@@ -233,8 +242,9 @@ Results are written to `results/` and figures to `results/figures/`.
 - Tide and storm peaks enter from the open sea only. Lagoon water follows the mean sea level but not the ocean tide or surge (lower bound); the run also prints the upper bound where the lagoon gets the full ocean peak.
 - A bathtub fills every connected low cell to the event peak. Real storm peaks last hours, so flooding inland of the shore is overstated for short events; results for the road are the year the water can first reach it, not a prediction of damage.
 - M2 uses the assessments' own measured shoreline change rates (1984-2024). Accretion is set to zero, because past gains came mostly from port and reclamation sand fill. Sea-level rise above the historical rate (3.25 mm/yr, global mean 1993-2018, IPCC AR6) adds retreat through the Bruun rule with factors 0, 50 and 100 m per m. The Bruun rule is a rough estimate and is often criticised (Cooper and Pilkey 2004), so it is shown as a range. Alongshore smoothing is off (D = 0) because no calibrated value exists here.
-- Uncertainty runs sample the AR6 5th to 95th percentile range only (tails beyond are not sampled), the radar map plus a GPS tie error (sd 2.5 mm/yr, same everywhere) and a local error (one normal draw per run times each cell's sigma, fully correlated), with flooding checked in 2050 and 2100 only, and the Bruun factor between 0 and 100. Elevation model error is not sampled yet.
-- Our own shorelines (step 6) are the line where the median water index (MNDWI) of all clear images in an epoch crosses 0. The median of many images taken at random tide stages sits near mid-tide; no tide model is applied, so year-to-year scatter of a few tens of metres is expected. The Landsat archive for this coast has almost no images from 1988 to 1997, and single years from 1998 to 2012 have only 1 to 3 clear looks (cloud, and the Landsat 7 scan-line gaps after 2003), so 1984-1987 is pooled into one epoch and 1998-2012 into 3-year epochs. Rates are linear regressions over all epochs. km where the shoreline advanced faster than 10 m/yr are flagged as likely reclaimed land and kept out of the summary.
+- Uncertainty runs sample the AR6 5th to 95th percentile range only (tails beyond are not sampled), the radar map plus a GPS tie error (sd 2.5 mm/yr, same everywhere) and a local error (one normal draw per run times each cell's sigma, fully correlated), with flooding checked in 2050 and 2100 only, and the Bruun factor between 0 and 100. Elevation model error is sampled as a smooth random field added to every cell (normal, sd 0.56 m from the DeltaDTM mean absolute error of 0.45 m, Pronk et al. 2024; correlation length 1 km, our assumption since none is published). The 0.45 m is a global figure; the error under dense vegetation or buildings may be larger.
+- Our own shorelines (step 6) are the line where the median water index (MNDWI) of all clear images in an epoch crosses 0. The median of many images taken at random tide stages sits near mid-tide; no tide model is applied, so year-to-year scatter of a few tens of metres is expected. The Landsat archive for this coast has almost no images from 1988 to 1997, and single years from 1998 to 2012 have only 1 to 3 clear looks (cloud, and the Landsat 7 scan-line gaps after 2003), so 1984-1987 is pooled into one epoch and 1998-2012 into 3-year epochs. Rates are robust straight-line fits (bisquare weights) over all epochs; the ordinary least-squares rate and a 2009-2025 rate are saved alongside. km where the shoreline advanced faster than 10 m/yr are flagged as likely reclaimed land and kept out of the summary.
+- The elevation model (DeltaDTM, built on Copernicus DEM radar data from 2011-2015) is older than the sand fill at the Dangote site and the Lekki port. Results for these sites therefore describe the ground before the fill unless `run_assets` shows heights that match the finished sites.
 - Our chainage starts at the westernmost mapped point of the road and lines up with the assessment chainage to within about 1 km.
 - Road points over water (bridges) are left out. A 1 km segment counts as reached when at least 10% of its length (100 m) is under water, so a single low pixel does not decide a whole kilometre.
 - Near km 50-54 (about 3.88-3.92 E) the elevation model shows two low channels (below 0.6 m) from the beach to the route. A channel from the beach inland is visible there on satellite imagery (checked on Google Maps, November 2026), so the low ground is real: the route crosses tidal wetland that is below today's high tide over a few hundred metres. A finished road would be raised or bridged here; the result means the design height at these crossings must account for the water levels below, which the assessment does not state.

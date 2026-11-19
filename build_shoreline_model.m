@@ -1,4 +1,4 @@
-function build_shoreline_model(modelName)
+function build_shoreline_model(modelName, withWaves)
 %BUILD_SHORELINE_MODEL Create the Simulink shoreline model used by method M2.
 %   build_shoreline_model() creates shoreline_model.slx in the project
 %   folder. The state y (one value per 1 km road segment, metres, positive
@@ -16,8 +16,16 @@ function build_shoreline_model(modelName)
 %           ends. D = 0 by default because no calibrated value exists here.
 %
 %   The model is solved with a fixed one-year step (ode4) from 2020 to 2150.
+%
+%   build_shoreline_model('shoreline_model_cal', true) builds the version
+%   used for calibration (calibrate_shoreline_model): one more input,
+%       + a * (P(t) - mean P)
+%   where P(t) is the yearly mean offshore wave power from ERA5 (kW/m) and
+%   a (waveGain, m/yr per kW/m, one value per segment) is fitted; the
+%   start and stop times and the initial positions (y0vec) are set per run.
 
 if nargin < 1, modelName = 'shoreline_model'; end
+if nargin < 2, withWaves = false; end
 cfg = project_config();
 file = fullfile(cfg.root, [modelName '.slx']);
 if bdIsLoaded(modelName), close_system(modelName, 0); end
@@ -35,10 +43,11 @@ add_block('simulink/Sources/From Workspace', [m '/Extra rise rate s(t)'], ...
     'Position', [40 110 160 140]);
 add_block('simulink/Math Operations/Gain', [m '/Bruun factor B'], ...
     'Gain', 'bruunFactor', 'Position', [200 110 260 140]);
+if withWaves, ins = '+-++'; ic = 'y0vec'; else, ins = '+-+'; ic = 'zeros(nSeg,1)'; end
 add_block('simulink/Math Operations/Sum', [m '/Sum'], ...
-    'Inputs', '+-+', 'Position', [320 60 350 160]);
+    'Inputs', ins, 'Position', [320 60 350 180]);
 add_block('simulink/Continuous/Integrator', [m '/Shoreline y'], ...
-    'InitialCondition', 'zeros(nSeg,1)', 'Position', [400 95 440 125]);
+    'InitialCondition', ic, 'Position', [400 95 440 125]);
 add_block('simulink/Math Operations/Gain', [m '/Alongshore D*L'], ...
     'Gain', 'diffMatrix', 'Multiplication', 'Matrix(K*u)', ...
     'Position', [380 190 460 220], 'Orientation', 'left');
@@ -52,6 +61,15 @@ add_line(m, 'Sum/1', 'Shoreline y/1', 'autorouting', 'on');
 add_line(m, 'Shoreline y/1', 'Save y/1', 'autorouting', 'on');
 add_line(m, 'Shoreline y/1', 'Alongshore D*L/1', 'autorouting', 'on');
 add_line(m, 'Alongshore D*L/1', 'Sum/3', 'autorouting', 'on');
+if withWaves
+    add_block('simulink/Sources/From Workspace', [m '/Wave power anomaly P(t)'], ...
+        'VariableName', 'waveAnom', 'Interpolate', 'on', 'OutputAfterFinalValue', 'Holding final value', ...
+        'Position', [40 300 160 330]);
+    add_block('simulink/Math Operations/Gain', [m '/Wave gain a'], ...
+        'Gain', 'waveGain', 'Multiplication', 'Element-wise(K.*u)', 'Position', [200 300 260 330]);
+    add_line(m, 'Wave power anomaly P(t)/1', 'Wave gain a/1', 'autorouting', 'on');
+    add_line(m, 'Wave gain a/1', 'Sum/4', 'autorouting', 'on');
+end
 
 try   % a note on the canvas; skipped quietly if this release names it differently
     note = Simulink.Annotation([m '/Shoreline position per 1 km road segment (m, + seaward): dy/dt = r - B*s(t) + D*L*y']);

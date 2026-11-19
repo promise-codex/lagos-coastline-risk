@@ -31,19 +31,9 @@ shoreDir = fullfile(cfg.dataDir, 'shoreline');
 H = load(fullfile(cfg.osmDir, 'highway_segments.mat'), 'segs', 'samples');
 segs = H.segs; nSeg = height(segs);
 mid = (segs.start_km + segs.end_km) / 2;
-utm = projcrs(32631);
 
 % ---- Transects -------------------------------------------------------------------
-ok = H.samples.mapped(:) & ~isnan(H.samples.lat(:));
-[sx, sy] = projfwd(utm, H.samples.lat(ok), H.samples.lon(ok));
-sc = H.samples.chainage_km(ok);
-x0 = interp1(sc, sx, mid); y0 = interp1(sc, sy, mid);
-xa = interp1(sc, sx, mid - 0.5, 'linear', 'extrap'); ya = interp1(sc, sy, mid - 0.5, 'linear', 'extrap');
-xb = interp1(sc, sx, mid + 0.5, 'linear', 'extrap'); yb = interp1(sc, sy, mid + 0.5, 'linear', 'extrap');
-t = [xb - xa, yb - ya]; t = t ./ vecnorm(t, 2, 2);
-nrm = [t(:, 2), -t(:, 1)];                                 % one of the two normals
-flip = nrm(:, 2) > 0; nrm(flip, :) = -nrm(flip, :);       % make it point south, to the sea
-s = (-300:5:cfg.transectLength_m)';                        % distance along the transect from the road (m)
+[x0, y0, nrm, s] = shore_transects(cfg, H.samples, mid);
 
 % ---- Composites ------------------------------------------------------------------------
 % Landsat: one pooled 1984-1987 epoch (labelled 1986), 3-year epochs for
@@ -65,7 +55,7 @@ for f = 1:numel(files)
         [ci, ri] = worldToIntrinsic(R, px, py);
         prof = interp2(w, ci, ri, 'linear');
         obs  = interp2(nObs, ci, ri, 'nearest');
-        P(k, f) = shorePos(s, prof, obs, cfg);
+        P(k, f) = shore_position(s, prof, obs, cfg.mndwiThreshold, cfg.minClearObs);
     end
 end
 colNames = sensor + "_" + string(yr);
@@ -91,24 +81,34 @@ fprintf('  water edge (river mouth, lagoon or surf). Without them: RMSE %.1f m\n
 
 % ---- Rates (Landsat, the long record) -------------------------------------------------
 L = P(:, sensor == "landsat"); ly = yr(sensor == "landsat");
-lrr = nan(nSeg, 1); lrrSE = nan(nSeg, 1); epr = nan(nSeg, 1); nYr = zeros(nSeg, 1); span = nan(nSeg, 1);
+lrr = nan(nSeg, 1); lrrSE = nan(nSeg, 1); ols = nan(nSeg, 1); epr = nan(nSeg, 1);
+rec = nan(nSeg, 1); recSE = nan(nSeg, 1); nYr = zeros(nSeg, 1); span = nan(nSeg, 1);
+% Main rate: robust straight-line fit (bisquare weights, robustfit), so a
+% single epoch where the line jumped to another water edge gets little
+% weight. The ordinary least-squares rate is kept for comparison. A second
+% robust rate uses 2009-2025 only (yearly data from 2013), which does not
+% lean on the sparse early epochs.
 for k = 1:nSeg
     v = ~isnan(L(k, :));
     nYr(k) = sum(v);
     if nYr(k) < cfg.minShoreYears || (max(ly(v)) - min(ly(v))) < 20, continue, end
-    X = [ones(sum(v), 1), ly(v)']; b = X \ L(k, v)';
-    res = L(k, v)' - X * b;
-    lrr(k) = b(2);                                           % position grows seaward, so a negative slope = erosion
-    lrrSE(k) = sqrt(sum(res.^2) / (sum(v) - 2) / sum((ly(v) - mean(ly(v))).^2));
+    [b, st] = robustfit(ly(v)', L(k, v)');
+    lrr(k) = b(2); lrrSE(k) = st.se(2);                      % position grows seaward, so a negative slope = erosion
+    bo = [ones(sum(v), 1), ly(v)'] \ L(k, v)'; ols(k) = bo(2);
     first = find(v, 1); last = find(v, 1, 'last');
     epr(k) = (L(k, last) - L(k, first)) / (ly(last) - ly(first));
     span(k) = ly(last) - ly(first);
+    w = v & ly >= 2009;
+    if sum(w) >= cfg.minShoreYears
+        [b, st] = robustfit(ly(w)', L(k, w)'); rec(k) = b(2); recSE(k) = st.se(2);
+    end
 end
 % sign convention as in the assessment: negative = erosion (shoreline moving landward)
 R2 = readtable(fullfile(cfg.resultsDir, 'm2_ladder_by_km.csv'));
 out = segs(:, {'segment', 'start_km', 'end_km', 'lat_mid', 'lon_mid'});
 out.years_used = nYr; out.span_years = span;
-out.lrr_m_yr = lrr; out.lrr_se_m_yr = lrrSE; out.epr_m_yr = epr;
+out.rate_robust_m_yr = lrr; out.rate_robust_se_m_yr = lrrSE; out.rate_ols_m_yr = ols; out.epr_m_yr = epr;
+out.rate_2009_2025_m_yr = rec; out.rate_2009_2025_se_m_yr = recSE;
 out.assessment_rate_m_yr = R2.measured_rate_m_yr;
 out.dem_dist_to_shore_m = R2.dist_to_shore_m;
 y20 = P(:, sensor == "landsat" & yr == 2020);
@@ -118,7 +118,7 @@ out.landsat2020_dist_m = y20;
 % marks land made by people (sand filling for Eko Atlantic, the Lekki port
 % and similar works). Those km are flagged and left out of the summary and
 % of check 2, so they do not hide erosion elsewhere.
-built = lrr > cfg.reclaimRate_m_yr;
+built = max(lrr, ols) > cfg.reclaimRate_m_yr;
 out.flag = repmat("", nSeg, 1); out.flag(built) = "seaward advance > " + cfg.reclaimRate_m_yr + " m/yr (likely reclaimed land)";
 writetable(out, fullfile(cfg.resultsDir, 'shoreline_rates.csv'));
 if any(built)
@@ -129,6 +129,15 @@ lrrAll = lrr; lrr(built) = NaN;
 fprintf('\nShoreline change 1984-2025 from Landsat (m/yr, negative = erosion), %d km with a rate (flagged km left out):\n', sum(~isnan(lrr)));
 fprintf('  median %.2f, 10th to 90th percentile %.2f to %.2f; km eroding faster than 1 m/yr: %d\n', ...
     median(lrr, 'omitnan'), prctile(lrr, 10), prctile(lrr, 90), sum(lrr < -1));
+o2 = ols; o2(built) = NaN; r2 = rec; r2(built) = NaN;
+fprintf('  (robust fit; ordinary least squares gives median %.2f, km faster than 1 m/yr: %d)\n', ...
+    median(o2, 'omitnan'), sum(o2 < -1));
+fprintf('  robust and least-squares rates differ by more than 1 m/yr at %d km (one or two odd epochs there)\n', ...
+    sum(abs(lrr - o2) > 1));
+fprintf('  2009-2025 only (%d km): median %.2f, km eroding faster than 1 m/yr: %d\n', ...
+    sum(~isnan(r2)), median(r2, 'omitnan'), sum(r2 < -1));
+fprintf('  km where 1984-2025 and 2009-2025 disagree in direction by more than 1 m/yr: %s\n', ...
+    strjoin(string(segs.start_km(abs(lrr - r2) > 1 & sign(lrr) ~= sign(r2)))', ', '));
 
 % ---- Check 2: against the assessments' own measurements ----------------------------------
 % The per-km assessment rate used in run_m2 is coarse: Section 1 gives
@@ -190,11 +199,12 @@ fprintf('  (the DEM distance is to the closest 10%% of the km, ours is along the
 fig = figure('Color', 'w', 'Position', [80 80 1150 420]);
 ax = axes(fig); hold(ax, 'on');
 if any(built)
-    plot(ax, mid(built), min(lrrAll(built), 14.5), '^', 'Color', [0.5 0.5 0.5], 'MarkerSize', 5, ...
+    plot(ax, mid(built), min(max(lrrAll(built), ols(built)), 14.5), '^', 'Color', [0.5 0.5 0.5], 'MarkerSize', 5, ...
         'DisplayName', 'likely reclaimed land (drawn at the top if off the scale)');
 end
 errorbar(ax, mid, lrr, 1.96 * lrrSE, 'o', 'Color', [0 0.35 0.7], 'MarkerFaceColor', [0 0.35 0.7], ...
-    'MarkerSize', 4, 'DisplayName', 'this project: Landsat 1984-2025, linear regression (95% interval)');
+    'MarkerSize', 4, 'DisplayName', 'this project: Landsat 1984-2025, robust fit (95% interval)');
+plot(ax, mid, r2, '.', 'Color', [0.3 0.7 0.3], 'MarkerSize', 10, 'DisplayName', 'this project: 2009-2025 only');
 plot(ax, mid, out.assessment_rate_m_yr, 's', 'Color', [0.85 0.4 0], 'MarkerSize', 6, 'LineWidth', 1.2, ...
     'DisplayName', 'highway assessment (DSAS end point rate)');
 yline(ax, 0, 'k-', 'HandleVisibility', 'off'); hold(ax, 'off'); grid(ax, 'on');
@@ -222,18 +232,3 @@ legend(ax, 'Location', 'eastoutside');
 exportgraphics(fig, fullfile(cfg.figDir, 'shoreline_timeseries.png'), 'Resolution', 200);
 fprintf('\nSaved results/shoreline_positions.csv, shoreline_rates.csv and two figures.\n');
 
-% -------------------------------------------------------------------------
-function p = shorePos(s, prof, obs, cfg)
-% Walk in from the sea end; first crossing below the threshold = shoreline.
-p = NaN;
-th = cfg.mndwiThreshold;
-e = find(~isnan(prof), 1, 'last');                          % sea end = last sample with data
-if isempty(e) || prof(e) < th, return, end                  % it must be water
-prof = prof(1:e); obs = obs(1:e); s = s(1:e);
-i = find(isnan(prof) | prof < th, 1, 'last');               % last land or gap sample, seen from the road side
-if isempty(i), return, end
-if isnan(prof(i)), return, end                              % gap before reaching land: no position
-if obs(i) < cfg.minClearObs || obs(i + 1) < cfg.minClearObs, return, end
-% linear interpolation between sample i (land) and i+1 (water)
-p = s(i) + (th - prof(i)) / (prof(i + 1) - prof(i)) * (s(i + 1) - s(i));
-end

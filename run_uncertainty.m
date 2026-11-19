@@ -10,6 +10,13 @@
 %              all cells (fully correlated: the cautious choice, because
 %              it widens the spread of the km totals)
 %     B      Bruun factor, uniform between 0 and 100
+%     e      elevation model error: a smooth random field added to every
+%            cell, normal with sd cfg.demErrSigma (DeltaDTM mean absolute
+%            error 0.45 m, Pronk et al. 2024, turned into a normal sd by
+%            x sqrt(pi/2) = 0.56 m) and correlation length cfg.demErrCorr_m.
+%            The correlation length is not published for DeltaDTM; it is
+%            our assumption (errors in a lidar-corrected model come in
+%            patches of vegetation and buildings, not single cells).
 %   and finds, for every road km, whether it is reached by 2050 and by
 %   2100 by the ordinary high tide (MHHW, open sea), by the mean level of
 %   any water (lagoon included), or by erosion. Flooding is run on the
@@ -88,12 +95,17 @@ for sc = 1:numel(scen)
     yrsMC = [2050 2100];
     tic
     B = 100 * rand(N, 1);
+    eRoad = zeros(N, 1);                                     % mean elevation error under the road, for the ranking
+    sgPx = cfg.demErrCorr_m / (1000 * sqrt(mean(cell_area_km2(R), 'all')));   % correlation length in cells
     firstYr = inf(N, nSeg);
     for n = 1:N
         slr = interp1(q / 100, Q, u(n));                       % 1 x years
         Vn = V + single(datum(n) / 1000) + single(zLoc(n)) * Sg;         % m/yr, every cell
         hMC = interp1(years, slr - slr(years == t0), yrsMC);
-        [lagoonYr, tideYr] = fullmap_first_years(Z, M, Vn, yrsMC, hMC, t0, Etide, cfg, road);
+        e = imgaussfilt(randn(size(Z), 'single'), sgPx);
+        e = e * (cfg.demErrSigma / std(e(:)));               % rescale the smoothed noise to the target sd
+        eRoad(n) = mean(e(road.idx));
+        [lagoonYr, tideYr] = fullmap_first_years(Z + e, M, Vn, yrsMC, hMC, t0, Etide, cfg, road);
         extra = max(gradient(slr, years) - histRate, 0);
         retreat = -r .* (years - t0) + B(n) * cumtrapz(years, extra);   % nSeg x years
         eroYr = inf(nSeg, 1);
@@ -113,9 +125,11 @@ for sc = 1:numel(scen)
     fprintf('  by 2100: %d  (%d to %d)\n', round(median(km2100)), round(prctile(km2100, 5)), round(prctile(km2100, 95)));
     fprintf('  km with at least 50%% chance of being reached by 2050: %d; by 2100: %d\n', ...
         sum(p2050 >= 0.5), sum(p2100 >= 0.5));
-    [~, iS] = sort(abs(corr([u s B], km2100, 'Type', 'Spearman')), 'descend');
-    names = {'sea-level quantile', 'sinking error (GPS tie + radar)', 'Bruun factor'};
-    fprintf('  what drives the 2100 result most (rank correlation): %s, then %s, then %s\n', names{iS});
+    rho = corr([u s B eRoad], km2100, 'Type', 'Spearman');
+    [~, iS] = sort(abs(rho), 'descend');
+    names = {'sea-level quantile', 'sinking error (GPS tie + radar)', 'Bruun factor', 'elevation model error'};
+    fprintf('  what drives the 2100 result (rank correlation with km reached):\n');
+    for i = iS', fprintf('    %-32s %+.2f\n', names{i}, rho(i)); end
 
     T = T3(:, {'segment', 'start_km', 'end_km', 'lat_mid', 'lon_mid'});
     T.p_reached_by_2050 = p2050; T.p_reached_by_2100 = p2100;

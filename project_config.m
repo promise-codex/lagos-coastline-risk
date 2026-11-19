@@ -70,6 +70,8 @@ cfg.insarMinPixels  = 10;    % fewer than this: search 3x wider, then fill from 
 cfg.insarDatumSigma = 2.5;   % mm/yr, 1-sigma error of the GPS tie, common to all segments
 cfg.insarFarFill    = 'regional'; % cells > 1.5 km from radar pixels: 'regional', 'median' or 'nearest'
 cfg.insarRegional_m = 3000;  % sigma of the Gaussian average used by 'regional'
+cfg.demErrSigma     = 0.45 * sqrt(pi / 2);  % m, DeltaDTM MAE 0.45 m (Pronk et al. 2024) as a normal sd
+cfg.demErrCorr_m    = 1000;  % m, correlation length of the elevation error (our assumption)
 % Own shorelines (step 6, extract_shorelines.m)
 cfg.mndwiThreshold   = 0;     % water/land threshold on the yearly median MNDWI
 cfg.minClearObs      = 3;     % clear observations needed at the shoreline pixel
