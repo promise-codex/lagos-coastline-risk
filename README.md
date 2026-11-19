@@ -88,6 +88,19 @@ Erosion on its own reaches only the few km where the beach is already close to t
 - Against the Section 1 assessment's own rate bands (1986-2024, same period): our median falls inside the stated range in 5 of 7 bands, including the fastest erosion at CH 3+600 to 4+800 (-5.1 m/yr against -8 to -5 m/yr).
 - Against the Section 2 community rates the agreement is poor (same direction at 4 of 8 places; Ode-Omi -5.3 m/yr in the assessment, +3.3 m/yr here). The community positions are uncertain: several were placed from the assessment's soil sampling points, and Ilado lands on the same km as Eleko. This check is not settled.
 
+### U-Net water map compared with the water index (`unet_shorelines`)
+
+A U-Net (encoder depth 3, 16 first filters, 30 epochs, 25 minutes on the MATLAB Online CPU) was trained on 1296 patches (with flips) of the 2021 Sentinel-2 image, with ESA WorldCover 2021 water as labels. Every fourth 8 km block of coast (90 patches) was held out.
+
+| Held-out blocks, agreement with WorldCover | IoU (water) | Accuracy |
+| --- | ---: | ---: |
+| U-Net, 2021 image | 0.995 | 0.998 |
+| MNDWI > 0, 2021 image | 0.988 | 0.994 |
+| U-Net, 2020 image (new year) | 0.975 | 0.989 |
+| MNDWI > 0, 2020 image | 0.977 | 0.990 |
+
+On the same images and transects (2016-2025, 1003 km-years) the U-Net shoreline lies a median 8.6 m further out to sea than the MNDWI shoreline (robust spread 5.7 m); 98% of positions agree within one 20 m pixel. Their 2016-2025 rates agree closely (101 km, median difference 0.13 m/yr, r = 0.97). In a new year the U-Net is no better than the water index. So the simple water index is enough for this coast, and the shoreline rates above do not depend on the choice of method. Agreement with WorldCover is not true accuracy, since WorldCover has its own errors.
+
 ### Dangote refinery and Lekki Deep Sea Port (`run_assets`)
 
 Outlines from OpenStreetMap: Dangote Refinery (way 732777987, 2303 ha) and Lekki Deep Seaport (way 785409163, 85 ha). Inside them the elevation model shows land throughout (no water cells): refinery median 2.56 m (10th to 90th percentile 1.60 to 3.11 m, 6% below 1 m), port median 3.30 m (2.97 to 3.67 m). These heights look like raised ground, so the model appears to include the fill, but the age of the elevation data (see assumptions) means this is not certain.
