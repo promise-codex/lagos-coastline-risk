@@ -3,15 +3,16 @@
 MATLAB and Simulink project for the MathWorks Global Student Challenge 2026
 (Sustainability and Renewable Energy: *Coastline Prediction using Existing Climate Change Models*).
 
-**Status:** land sinking is now measured with our own Sentinel-1 radar processing (see `insar/README_insar.md`). The results tables below are still from the first version, which used a uniform 11.4 mm/yr, and will be replaced after the measured rates are run through M1 to M3. Still to add: own satellite shoreline positions and a hindcast test of the shoreline model.
+**Status:** land sinking is measured with our own Sentinel-1 radar processing (2017-2025, tied to GPS; see `insar/README_insar.md`) and applied to every elevation cell at its own rate. Still to add: own satellite shoreline positions, a hindcast test of the shoreline model, and elevation error in the uncertainty runs.
 
 ## Key findings
 
-1. The highway assessment's bathtub screening (M0) finds no road km reached by the sea before 2100 under the IPCC AR6 median (SSP2-4.5). The same elevation data, with each missing process added one at a time, gives a very different answer: 57 of 109 road km reached by the ordinary high tide by 2100, and 67 km by a 10-year storm.
-2. Land sinking is the single largest driver. Adding 11.4 mm/yr of sinking (M1) moves the first road km from 2112 to 2056. In 2000 Monte Carlo runs the sinking rate ranks above the sea-level percentile and the Bruun factor.
-3. About 3 km of the route (near km 50 to 54, Orimedu) crosses tidal wetland that is below today's high tide. These low channels are visible on satellite imagery.
-4. Shoreline erosion alone reaches only about 3 road km by 2100. Where it does matter (CH 3+800), the model reproduces the assessment's own forecast. At CH 33+600 to 37+500 the assessment's forecast does not follow from its own measured rate.
-5. Measured sinking (InSAR or GPS) along the corridor is the most valuable next measurement before the road levels are fixed.
+1. The highway assessment's bathtub screening (M0) finds no road km reached by the sea before 2100 under the IPCC AR6 median (SSP2-4.5). The same elevation data, with each missing process added one at a time, gives a very different answer: 30 of 109 road km reached by the ordinary high tide by 2100, and 49 km by a 10-year storm.
+2. Our own radar measurements show the land under the route sinking by 4.8 mm/yr at the median, and by 17 mm/yr or more along its fastest 10%. Fill on the lagoon edges sinks 15 to 30 mm/yr. Measured sinking alone (M1) brings the first road km forward from 2112 to 2072 and puts 10 km under the mean sea level by 2100.
+3. Sinking has to be applied point by point. Giving each road km one average rate finds only 3 km by 2100 instead of 10, because water reaches the road through the low spots that sink fastest.
+4. About 3 km of the route (near km 50 to 54, Orimedu) crosses tidal wetland that is below today's high tide. These low channels are visible on satellite imagery.
+5. Shoreline erosion alone reaches only about 3 road km by 2100. Where it does matter (CH 3+800), the model reproduces the assessment's own forecast. At CH 33+600 to 37+500 the assessment's forecast does not follow from its own measured rate.
+6. In 2000 Monte Carlo runs the sinking error ranks above the sea-level percentile and the Bruun factor. Most of that error is the tie to GPS, because the only Lagos GPS records with public data end in 2013. A permanent GPS station on the corridor would cut the largest uncertainty in this result.
 
 ## Question
 
@@ -37,17 +38,29 @@ that covers the full 104 km.
 
 All results below use the IPCC AR6 projection for the Lagos tide gauge (PSMSL 162), the 109 road km mapped in OpenStreetMap, and the 10% rule (a km is reached when at least 100 m of it is under water or behind the shoreline).
 
-### Method ladder (SSP2-4.5 median, land sinking 11.4 mm/yr, Bruun factor 50)
+### Method ladder (SSP2-4.5 median, measured sinking, Bruun factor 50)
 
 | Method | Today (2020) | By 2030 | By 2050 | By 2100 | First year |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 bathtub (assessment approach) | 0 | 0 | 0 | 0 | 2112 |
-| M1 + land sinking | 0 | 0 | 0 | 22 | 2056 |
-| M2 + moving beach | 0 | 1 | 2 | 25 | 2030 |
-| M3 + ordinary high tide | 3 | 11 | 15 | 57 | 2020 |
-| M3 + 10-year storm | 13 | 14 | 26 | 67 | 2020 |
+| M1 + measured sinking (radar) | 0 | 0 | 0 | 10 | 2072 |
+| M2 + moving beach | 0 | 1 | 2 | 13 | 2030 |
+| M3 + ordinary high tide | 3 | 7 | 13 | 30 | 2020 |
+| M3 + 10-year storm | 13 | 14 | 25 | 49 | 2020 |
 
 Values are road km reached (out of 109). Each row includes everything in the rows above it. M0 uses no sinking.
+
+### Measured sinking compared with uniform rates (M1 and M3 without erosion, SSP2-4.5 median, road km reached by 2100)
+
+| Sinking | Mean sea level (M1) | High tide | 10-year storm | 100-year storm |
+| --- | ---: | ---: | ---: | ---: |
+| none | 0 | 13 | 24 | 31 |
+| uniform 5 mm/yr | 12 | 22 | 50 | 57 |
+| uniform 11.4 mm/yr (fastest 10% in a published 2015-2025 study) | 22 | 55 | 65 | 66 |
+| uniform 34 mm/yr (published lower bound for Lekki and Victoria Island) | 71 | 94 | 109 | 109 |
+| **measured by radar, cell by cell** | **10** | **27** | **46** | **50** |
+
+Under SSP5-8.5 the measured case gives 17, 36, 51 and 56 km. Before this full run, the method was checked: with one uniform rate everywhere, the cell-by-cell code gives the same result as the faster flood-level map (0 vs 0 km at 0 mm/yr, 24 vs 22 km at 11.4 mm/yr; the small difference comes from the map's 5 cm steps).
 
 ### Erosion alone (Simulink shoreline model)
 
@@ -66,14 +79,14 @@ Erosion on its own reaches only the few km where the beach is already close to t
 
 ### Uncertainty (2000 Monte Carlo runs per scenario)
 
-Each run draws a sea-level percentile (5th to 95th), a sinking rate (0 to 34 mm/yr) and a Bruun factor (0 to 100), and combines the high tide, the lagoon level and erosion.
+Each run draws a sea-level percentile (5th to 95th), an error on the radar sinking map (a GPS tie error with standard deviation 2.5 mm/yr, plus the local error of each cell) and a Bruun factor (0 to 100). Flooding is run on the whole elevation model for 2050 and 2100 and combined with the high tide, the lagoon level and erosion.
 
 | Scenario | Road km reached by 2050, median (5 to 95%) | By 2100, median (5 to 95%) | Main driver |
 | --- | --- | --- | --- |
-| SSP2-4.5 | 21 (14 to 36) | 67 (22 to 93) | sinking rate, then sea-level percentile, then Bruun factor |
-| SSP5-8.5 | 21 (14 to 40) | 68 (26 to 103) | same order |
+| SSP2-4.5 | 16 (4 to 23) | 34 (10 to 59) | sinking error, then sea-level percentile, then Bruun factor |
+| SSP5-8.5 | 16 (4 to 24) | 42 (16 to 66) | same order |
 
-Even the 5th percentile result for 2100 (22 km) is far above the bathtub answer (0 km).
+Even the 5th percentile result for 2100 (10 km) is above the bathtub answer (0 km).
 
 The closed-form erosion formula used in these runs was checked against the Simulink model; the largest difference over 130 years was 0.000 m.
 
