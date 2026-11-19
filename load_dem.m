@@ -116,7 +116,8 @@ function M = maskFromNoData(Z, R)
 %       ground above +10 m); these are NOT used as flood sources
 nodata = isnan(Z);
 M = zeros(size(Z), 'uint8');
-if strcmp(R.RowsStartFrom, 'north')
+% In MATLAB, ColumnsStartFrom says whether row 1 is the north or south edge
+if strcmp(R.ColumnsStartFrom, 'north')
     southRow = size(Z, 1); stepUp = -1;
 else
     southRow = 1; stepUp = 1;
