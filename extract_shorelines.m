@@ -85,6 +85,9 @@ d = d(~isnan(d));
 fprintf('\nCheck 1, Sentinel-2 (20 m) minus Landsat (30 m), same km and year, %d pairs:\n', numel(d));
 fprintf('  mean %.1f m, median %.1f m, robust spread (1.48 x MAD) %.1f m, RMSE %.1f m\n', ...
     mean(d), median(d), 1.4826 * median(abs(d - median(d))), sqrt(mean(d.^2)));
+big = abs(d - median(d)) > 100;
+fprintf('  %d pairs (%.0f%%) differ by more than 100 m from the median: the two sensors picked a different\n', sum(big), 100 * mean(big));
+fprintf('  water edge (river mouth, lagoon or surf). Without them: RMSE %.1f m\n', sqrt(mean(d(~big).^2)));
 
 % ---- Rates (Landsat, the long record) -------------------------------------------------
 L = P(:, sensor == "landsat"); ly = yr(sensor == "landsat");
@@ -127,13 +130,54 @@ fprintf('\nShoreline change 1984-2025 from Landsat (m/yr, negative = erosion), %
 fprintf('  median %.2f, 10th to 90th percentile %.2f to %.2f; km eroding faster than 1 m/yr: %d\n', ...
     median(lrr, 'omitnan'), prctile(lrr, 10), prctile(lrr, 90), sum(lrr < -1));
 
-% ---- Check 2: against the assessments' rates ----------------------------------------------
+% ---- Check 2: against the assessments' own measurements ----------------------------------
+% The per-km assessment rate used in run_m2 is coarse: Section 1 gives
+% bands of rates over several km, and Section 2 gives one rate per
+% community, which run_m2 spreads to the nearest km. A km-by-km
+% correlation with that step function says little, so the check is done
+% where the assessments actually measured, over their own period
+% (end point rate 1986-2024, DSAS):
+%   2a. Section 2: each community, our 1986-2024 end point rate at the
+%       nearest road km against the assessment's value.
+%   2b. Section 1: each band, the median of our rates over the km in the
+%       band, and whether it falls inside the band's stated range.
+e86 = L(:, ly == 1986); e24 = L(:, ly == 2024);
+epr8624 = (e24 - e86) / (2024 - 1986); epr8624(built) = NaN;
+out.epr_1986_2024_m_yr = epr8624;
+writetable(out, fullfile(cfg.resultsDir, 'shoreline_rates.csv'));
+fprintf('\nCheck 2a, Section 2 communities, end point rate 1986-2024 (m/yr, negative = erosion):\n');
+fprintf('  %-14s %6s %10s %10s\n', 'community', 'km', 'assessment', 'ours');
+Pl = readtable(fullfile(cfg.osmDir, 'places.csv'), 'TextType', 'string');
+Pl = Pl(~isnan(Pl.lon), :);
+a2 = nan(height(Pl), 1); o2 = a2;
+for j = 1:height(Pl)
+    [~, k] = min(abs(segs.lon_mid - Pl.lon(j)) + 1e9 * (mid < 47.5));
+    a2(j) = Pl.epr_m_yr(j); o2(j) = epr8624(k);
+    fprintf('  %-14s %6g %10.2f %10.2f\n', Pl.community(j), segs.start_km(k), a2(j), o2(j));
+end
+c = ~isnan(o2);
+fprintf('  %d communities: median difference (ours - assessment) %.2f m/yr, correlation r = %.2f, same direction %d of %d\n', ...
+    sum(c), median(o2(c) - a2(c)), corr(o2(c), a2(c)), sum(sign(o2(c)) == sign(a2(c))), sum(c));
+B1 = readtable(fullfile(cfg.dataDir, 'esia', 'shoreline_rates_section1.csv'));
+fprintf('\nCheck 2b, Section 1 bands (m/yr):\n');
+fprintf('  %-12s %-14s %-16s %s\n', 'chainage', 'assessment', 'ours (median)', 'inside range?');
+nIn = 0; nB = 0;
+for b = 1:height(B1)
+    if isnan(B1.epr_min_m_yr(b)), continue, end
+    in = mid >= B1.from_km(b) & mid <= B1.to_km(b) & ~isnan(epr8624);
+    if ~any(in), continue, end
+    m = median(epr8624(in));
+    ok2 = m >= B1.epr_min_m_yr(b) - 0.5 & m <= B1.epr_max_m_yr(b) + 0.5;   % 0.5 m/yr allowance for position error
+    nB = nB + 1; nIn = nIn + ok2;
+    fprintf('  %4.1f-%-6.1f %4g to %-7g %6.2f (%d km)      %s\n', B1.from_km(b), B1.to_km(b), ...
+        B1.epr_min_m_yr(b), B1.epr_max_m_yr(b), m, sum(in), string(ok2));
+end
+fprintf('  %d of %d bands inside the stated range (within 0.5 m/yr)\n', nIn, nB);
+
+% the old km-by-km comparison, kept for reference
 c = ~isnan(lrr) & ~isnan(out.assessment_rate_m_yr);
-dd = lrr(c) - out.assessment_rate_m_yr(c);
-fprintf('\nCheck 2, our rate minus the assessment rate, %d km: median %.2f m/yr, robust spread %.2f, correlation r = %.2f\n', ...
-    sum(c), median(dd), 1.4826 * median(abs(dd - median(dd))), corr(lrr(c), out.assessment_rate_m_yr(c)));
-fprintf('  same sign (both eroding or both stable/accreting): %d of %d km\n', ...
-    sum(sign(lrr(c)) == sign(out.assessment_rate_m_yr(c))), sum(c));
+fprintf('\n  (km by km against the spread-out rate used in run_m2: %d km, r = %.2f)\n', ...
+    sum(c), corr(lrr(c), out.assessment_rate_m_yr(c)));
 
 % ---- Check 3: shoreline distance vs the elevation model ----------------------------------
 c3 = ~isnan(y20) & ~isnan(out.dem_dist_to_shore_m);
