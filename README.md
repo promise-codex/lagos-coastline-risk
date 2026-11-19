@@ -77,6 +77,17 @@ The assessments give measured shoreline change rates (end point rates, 1984 or 1
 
 Erosion on its own reaches only the few km where the beach is already close to the route.
 
+### Our own shoreline measurement (Landsat 1984-2025, Sentinel-2 2016-2025)
+
+`extract_shorelines` finds the shoreline on a transect at every road km in each Landsat epoch (1986, five 3-year epochs 1998-2012, then yearly 2013-2025) and each Sentinel-2 year.
+
+- A shoreline was found in 90% of km-years for Landsat and 87% for Sentinel-2.
+- Sentinel-2 and Landsat agree to within 14 m (median offset; robust spread 9 m; RMSE 18 m after leaving out the 2% of pairs that differ by more than 100 m, where the two sensors probably picked a different water edge).
+- Shoreline change 1984-2025 (linear regression, 98 km): median -0.73 m/yr (erosion), 10th to 90th percentile -3.1 to +4.7 m/yr. 39 km are eroding faster than 1 m/yr.
+- km 0 to 3, 65 and 75 advanced faster than 10 m/yr and are flagged as likely reclaimed land. The assessment's Ebute-Lekki point (km 75) also shows the fastest growth in Section 2 (+10.4 m/yr).
+- Against the Section 1 assessment's own rate bands (1986-2024, same period): our median falls inside the stated range in 5 of 7 bands, including the fastest erosion at CH 3+600 to 4+800 (-5.1 m/yr against -8 to -5 m/yr).
+- Against the Section 2 community rates the agreement is poor (same direction at 4 of 8 places; Ode-Omi -5.3 m/yr in the assessment, +3.3 m/yr here). The community positions are uncertain: several were placed from the assessment's soil sampling points, and Ilado lands on the same km as Eleko. This check is not settled.
+
 ### Uncertainty (2000 Monte Carlo runs per scenario)
 
 Each run draws a sea-level percentile (5th to 95th), an error on the radar sinking map (a GPS tie error with standard deviation 2.5 mm/yr, plus the local error of each cell) and a Bruun factor (0 to 100). Flooding is run on the whole elevation model for 2050 and 2100 and combined with the high tide, the lagoon level and erosion.
