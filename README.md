@@ -3,13 +3,13 @@
 MATLAB and Simulink project for the MathWorks Global Student Challenge 2026
 (Sustainability and Renewable Energy: *Coastline Prediction using Existing Climate Change Models*).
 
-**Status:** the numbers below come from a first full run with measured sinking. A fix to how land far from any radar pixel is filled is being run now, so they may still change. Land sinking is measured with our own Sentinel-1 radar processing (2017-2025, tied to GPS; see `insar/README_insar.md`) and applied to every elevation cell at its own rate. Still to add: own satellite shoreline positions, a hindcast test of the shoreline model, and elevation error in the uncertainty runs.
+**Status:** land sinking is measured with our own Sentinel-1 radar processing (2017-2025, tied to GPS; see `insar/README_insar.md`) and applied to every elevation cell at its own rate. Still to add: own satellite shoreline positions, a hindcast test of the shoreline model, and elevation error in the uncertainty runs.
 
 ## Key findings
 
 1. The highway assessment's bathtub screening (M0) finds no road km reached by the sea before 2100 under the IPCC AR6 median (SSP2-4.5). The same elevation data, with each missing process added one at a time, gives a very different answer: 30 of 109 road km reached by the ordinary high tide by 2100, and 49 km by a 10-year storm.
-2. Our own radar measurements show the land under the route sinking by 4.8 mm/yr at the median, and by 17 mm/yr or more along its fastest 10%. Fill on the lagoon edges sinks 15 to 30 mm/yr. Measured sinking alone (M1) brings the first road km forward from 2112 to 2072 and puts 10 km under the mean sea level by 2100.
-3. Sinking has to be applied point by point. Giving each road km one average rate finds only 3 km by 2100 instead of 10, because water reaches the road through the low spots that sink fastest.
+2. Our own radar measurements show the land under the route sinking by 4.4 mm/yr at the median, and by 16 mm/yr or more along its fastest 10%. Fill on the lagoon edges sinks 15 to 30 mm/yr. Measured sinking alone (M1) brings the first road km forward from 2112 to 2072 and puts 8 km under the mean sea level by 2100.
+3. Sinking has to be applied point by point. Giving each road km one average rate finds only 3 km by 2100 instead of 8, because water reaches the road through the low spots that sink fastest.
 4. About 3 km of the route (near km 50 to 54, Orimedu) crosses tidal wetland that is below today's high tide. These low channels are visible on satellite imagery.
 5. Shoreline erosion alone reaches only about 3 road km by 2100. Where it does matter (CH 3+800), the model reproduces the assessment's own forecast. At CH 33+600 to 37+500 the assessment's forecast does not follow from its own measured rate.
 6. In 2000 Monte Carlo runs the sinking error ranks above the sea-level percentile and the Bruun factor. Most of that error is the tie to GPS, because the only Lagos GPS records with public data end in 2013. A permanent GPS station on the corridor would cut the largest uncertainty in this result.
@@ -43,10 +43,10 @@ All results below use the IPCC AR6 projection for the Lagos tide gauge (PSMSL 16
 | Method | Today (2020) | By 2030 | By 2050 | By 2100 | First year |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 bathtub (assessment approach) | 0 | 0 | 0 | 0 | 2112 |
-| M1 + measured sinking (radar) | 0 | 0 | 0 | 10 | 2072 |
-| M2 + moving beach | 0 | 1 | 2 | 13 | 2030 |
+| M1 + measured sinking (radar) | 0 | 0 | 0 | 8 | 2072 |
+| M2 + moving beach | 0 | 1 | 2 | 11 | 2030 |
 | M3 + ordinary high tide | 3 | 7 | 13 | 30 | 2020 |
-| M3 + 10-year storm | 13 | 14 | 25 | 49 | 2020 |
+| M3 + 10-year storm | 13 | 14 | 23 | 49 | 2020 |
 
 Values are road km reached (out of 109). Each row includes everything in the rows above it. M0 uses no sinking.
 
@@ -58,9 +58,9 @@ Values are road km reached (out of 109). Each row includes everything in the row
 | uniform 5 mm/yr | 12 | 22 | 50 | 57 |
 | uniform 11.4 mm/yr (fastest 10% in a published 2015-2025 study) | 22 | 55 | 65 | 66 |
 | uniform 34 mm/yr (published lower bound for Lekki and Victoria Island) | 71 | 94 | 109 | 109 |
-| **measured by radar, cell by cell** | **10** | **27** | **46** | **50** |
+| **measured by radar, cell by cell** | **8** | **27** | **46** | **50** |
 
-Under SSP5-8.5 the measured case gives 17, 36, 51 and 56 km. Before this full run, the method was checked: with one uniform rate everywhere, the cell-by-cell code gives the same result as the faster flood-level map (0 vs 0 km at 0 mm/yr, 24 vs 22 km at 11.4 mm/yr; the small difference comes from the map's 5 cm steps).
+Under SSP5-8.5 the measured case gives 14, 36, 51 and 56 km. About three quarters of the land cells have no radar pixel within 1.5 km; filling them with a smooth regional average, the whole-map median or the nearest pixel gives 8, 8 and 10 km for M1 and the same 27 and 46 km for high tide and 10-year storm, so this choice hardly matters for the road. Before this full run, the method was checked: with one uniform rate everywhere, the cell-by-cell code gives the same result as the faster flood-level map (0 vs 0 km at 0 mm/yr, 24 vs 22 km at 11.4 mm/yr; the small difference comes from the map's 5 cm steps).
 
 ### Erosion alone (Simulink shoreline model)
 
@@ -83,10 +83,10 @@ Each run draws a sea-level percentile (5th to 95th), an error on the radar sinki
 
 | Scenario | Road km reached by 2050, median (5 to 95%) | By 2100, median (5 to 95%) | Main driver |
 | --- | --- | --- | --- |
-| SSP2-4.5 | 16 (4 to 23) | 34 (10 to 59) | sinking error, then sea-level percentile, then Bruun factor |
-| SSP5-8.5 | 16 (4 to 24) | 42 (16 to 66) | same order |
+| SSP2-4.5 | 16 (4 to 19) | 34 (8 to 59) | sinking error, then sea-level percentile, then Bruun factor |
+| SSP5-8.5 | 16 (4 to 20) | 42 (13 to 66) | same order |
 
-Even the 5th percentile result for 2100 (10 km) is above the bathtub answer (0 km).
+Even the 5th percentile result for 2100 (8 km) is above the bathtub answer (0 km).
 
 The closed-form erosion formula used in these runs was checked against the Simulink model; the largest difference over 130 years was 0.000 m.
 
