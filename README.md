@@ -3,7 +3,7 @@
 MATLAB and Simulink project for the MathWorks Global Student Challenge 2026
 (Sustainability and Renewable Energy: *Coastline Prediction using Existing Climate Change Models*).
 
-**Status:** analysis complete (methods M0 to M3, uncertainty runs and app). Video in preparation.
+**Status:** first full version (M0 to M3, uncertainty runs and app). Still to add: own satellite measurements of land sinking and shoreline position, and a hindcast test of the shoreline model.
 
 ## Key findings
 
@@ -25,7 +25,7 @@ on the same corridor, each adding one process:
 | --- | --- |
 | M0 Bathtub | Sea-level rise on the elevation model, connected to the sea |
 | M1 Sinking land | M0 plus vertical land motion |
-| M2 Moving beach | M1 plus shoreline retreat from a calibrated shoreline model |
+| M2 Moving beach | M1 plus shoreline retreat from a Simulink shoreline model driven by the assessments' measured rates (not yet calibrated or hindcast-tested) |
 | M3 Extreme water | M2 plus tide and storm surge return levels |
 
 For each 1 km segment of the road, the project reports the first year of impact under each
