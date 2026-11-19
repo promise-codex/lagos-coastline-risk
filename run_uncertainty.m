@@ -2,17 +2,20 @@
 %   Each of N runs draws:
 %     u      a sea-level quantile, the same through time (AR6 5th to 95th
 %            percentile curves, linear between them; outside 5-95 is not sampled)
-%     s      land sinking rate for each road km: the radar rate measured
-%            under that km (insar_segment_rates) plus two errors,
+%     s      land motion of every elevation cell: the radar map
+%            (sinking_field) plus two errors,
 %              a GPS tie error, normal with sd cfg.insarDatumSigma, the
-%              same for every km (it shifts the whole map), and
-%              a local error, z * sigma_k, with one normal z per run for
-%              all km (fully correlated: the cautious choice, because it
-%              widens the spread of the km totals)
+%              same for every cell (it shifts the whole map), and
+%              a local error, z * sigma(x), with one normal z per run for
+%              all cells (fully correlated: the cautious choice, because
+%              it widens the spread of the km totals)
 %     B      Bruun factor, uniform between 0 and 100
-%   and finds, for every road km, the first year it is reached by the
-%   ordinary high tide (MHHW, ocean side), by the lagoon mean level, or by
-%   erosion, whichever comes first.
+%   and finds, for every road km, whether it is reached by 2050 and by
+%   2100 by the ordinary high tide (MHHW, open sea), by the mean level of
+%   any water (lagoon included), or by erosion. Flooding is run on the
+%   whole elevation model with each cell moved at its own rate
+%   (fullmap_first_years), only for the years 2050 and 2100 to keep the
+%   2000 runs to about 15 minutes per scenario.
 %
 %   Erosion is computed with the closed-form solution of the Simulink
 %   shoreline model (valid because D = 0, so each km evolves on its own):
@@ -26,7 +29,10 @@ N = 2000;
 rng(2026);                                              % repeatable draws
 T3 = readtable(fullfile(cfg.resultsDir, 'm3_road_first_wet_year.csv'));
 T2 = readtable(fullfile(cfg.resultsDir, 'm2_ladder_by_km.csv'));
-Ti = readtable(fullfile(cfg.resultsDir, 'insar_segment_rates.csv'));
+[Z, M, R] = load_dem(cfg);
+road = road_cells(cfg, R, M);
+[V, Sg] = sinking_field(cfg, R, size(Z));
+[~, lonGrid] = geographicGrid(R);
 G  = readtable(fullfile(cfg.dataDir, 'gtsm', 'gtsm_lagos_stations.csv'));
 nSeg = height(T3);
 [~, nearest] = min(abs(T3.lon_mid - G.lon'), [], 2);
@@ -76,15 +82,18 @@ for sc = 1:numel(scen)
     u = 0.05 + 0.90 * rand(N, 1);
     datum = cfg.insarDatumSigma * randn(N, 1);             % mm/yr, common to all km
     zLoc = randn(N, 1);                                      % local error, in units of sigma
-    s = datum + zLoc * median(Ti.sigma_mm_yr);               % summary of the sinking draw, for the ranking below
+    s = datum + zLoc * 1000 * median(Sg(road.idx));          % summary of the sinking draw, for the ranking below
+    [~, nnG] = min(abs(lonGrid(1, :)' - G.lon'), [], 2);
+    Etide = G.MHHW_m(nnG)';                                  % high tide per grid column
+    yrsMC = [2050 2100];
+    tic
     B = 100 * rand(N, 1);
     firstYr = inf(N, nSeg);
     for n = 1:N
         slr = interp1(q / 100, Q, u(n));                       % 1 x years
-        sinkSeg = (Ti.sink_mm_yr + datum(n) + zLoc(n) * Ti.sigma_mm_yr) / 1000;   % m/yr, one per km
-        h = cummax((slr - slr(years == t0)) + sinkSeg .* (years - t0), 2);      % km x years
-        tideYr = yearReached(lvlOcean - mhhw, h, years);
-        lagoonYr = yearReached(lvlAny, h, years);
+        Vn = V + single(datum(n) / 1000) + single(zLoc(n)) * Sg;         % m/yr, every cell
+        hMC = interp1(years, slr - slr(years == t0), yrsMC);
+        [lagoonYr, tideYr] = fullmap_first_years(Z, M, Vn, yrsMC, hMC, t0, Etide, cfg, road);
         extra = max(gradient(slr, years) - histRate, 0);
         retreat = -r .* (years - t0) + B(n) * cumtrapz(years, extra);   % nSeg x years
         eroYr = inf(nSeg, 1);
@@ -93,6 +102,7 @@ for sc = 1:numel(scen)
             if ~isempty(j), eroYr(k) = years(j); end
         end
         firstYr(n, :) = min([tideYr, lagoonYr, eroYr], [], 2)';
+        if mod(n, 250) == 0, fprintf('  %s: %d of %d runs (%.0f s)\n', scen{sc}, n, N, toc); end
     end
     p2050 = mean(firstYr <= 2050, 1)';
     p2100 = mean(firstYr <= 2100, 1)';

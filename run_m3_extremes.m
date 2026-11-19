@@ -81,10 +81,11 @@ segOcean(isnan(segOcean) & ~isnan(segLevel)) = Inf;
 [~, nearest] = min(abs(H.segs.lon_mid - G.lon'), [], 2);   % nearest point along the coast
 
 % ---- Land sinking cases -------------------------------------------------------------
-% The uniform rates in cfg.subsidence_mm_yr, plus the measured radar rate for
-% each road km (insar_segment_rates). Each case is a number (uniform) or a
-% vector with one rate per segment.
-Ti = insar_segment_rates(cfg, true);
+% The uniform rates in cfg.subsidence_mm_yr (exact with the flood-level map,
+% because uniform sinking acts like extra sea-level rise), plus the measured
+% radar map applied pixel by pixel, read from run_fullmap_sinking.
+Ti = insar_segment_rates(cfg, true);                     % per-km rates, for the profile figure and table
+F = load(fullfile(cfg.resultsDir, 'fullmap_first_years.mat'));
 rates = [num2cell(cfg.subsidence_mm_yr), {Ti.sink_mm_yr}];
 rateTag = [arrayfun(@(x) strrep(sprintf('%g', x), '.', 'p'), cfg.subsidence_mm_yr, 'UniformOutput', false), {'InSAR'}];
 rateText = [arrayfun(@(x) sprintf('%5.1f mm/yr', x), cfg.subsidence_mm_yr, 'UniformOutput', false), {'measured   '}];
@@ -102,9 +103,13 @@ for c = 1:size(cases, 1)
         for r = 1:numel(rates)
             % water level at each segment: rows = segments (one row if the rate is uniform)
             h = (slr(c, :) - slr(c, cfg.years == cfg.refYear)) + rates{r}(:) / 1000 .* (cfg.years - cfg.refYear);
-            yrOcean  = firstYearReached(segOcean - E, h, cfg.years);
-            yrLagoon = firstYearReached(segLevel, h, cfg.years);
-            yr = min(yrOcean, yrLagoon);
+            if r < numel(rates)
+                yrOcean  = firstYearReached(segOcean - E, h, cfg.years);
+                yrLagoon = firstYearReached(segLevel, h, cfg.years);
+                yr = min(yrOcean, yrLagoon);
+            else                                         % measured: full-map result
+                yr = squeeze(F.yrFirst(strcmp(F.scen, cases{c, 2}), F.q == cases{c, 3}, :, e));
+            end
             if c == 1 && r == 1 && e > 1
                 yrUpper = firstYearReached(segLevel - E, h, cfg.years);
                 fprintf('  (upper bound, lagoon gets the full ocean peak: %s reaches %d segments today)\n', ...

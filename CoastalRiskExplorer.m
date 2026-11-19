@@ -1,8 +1,8 @@
 function CoastalRiskExplorer()
 %COASTALRISKEXPLORER Interactive app: which parts of the Lagos coastal highway the sea reaches, and when.
 %   Choose the method (M0 to M3), the IPCC scenario and percentile, the
-%   land sinking (the rate measured by radar under each km, or one uniform
-%   rate from the slider), the Bruun factor and a year. The map colours each
+%   land sinking (the radar map applied cell by cell, precomputed by
+%   run_fullmap_sinking, or one uniform rate from the slider), the Bruun factor and a year. The map colours each
 %   1 km of the route by whether it is reached by that year, and the chart
 %   shows how many km are reached over time for the chosen settings and
 %   for the bathtub method (M0) used in the assessment.
@@ -62,10 +62,17 @@ refresh();
         lblB.Text = sprintf('Bruun factor: %.0f m per m', B);
         lblYear.Text = sprintf('Year: %d', yr);
         method = ddMethod.Value;
-        if startsWith(method, 'M0'), sink = 0; end     % the bathtub method has no sinking
+        fm = [];
+        if startsWith(method, 'M0')
+            sink = 0;                                     % the bathtub method has no sinking
+        elseif measured
+            sI = strcmp(D.F.scen, ddScen.Value); qI = D.F.q == str2double(ddQ.Value);
+            fm.any = squeeze(D.F.yrAny(sI, qI, :));
+            fm.ocean = squeeze(D.F.yrOcean(sI, qI, :, :));    % km x events
+        end
         slr = D.slr.(ddScen.Value)(str2double(ddQ.Value) == D.q, :);
-        first = firstYears(D, cfg, slr, sink, B, method);
-        firstM0 = firstYears(D, cfg, D.slr.(ddScen.Value)(D.q == 50, :), 0, 0, 'M0');
+        first = firstYears(D, cfg, slr, sink, B, method, fm);
+        firstM0 = firstYears(D, cfg, D.slr.(ddScen.Value)(D.q == 50, :), 0, 0, 'M0', []);
 
         reached = first <= yr;
         cla(gx); hold(gx, 'on');
@@ -107,6 +114,7 @@ H  = load(fullfile(cfg.osmDir, 'highway_segments.mat'), 'segs', 'samples');
 D.segs = H.segs; D.samples = H.samples;
 Ti = readtable(fullfile(cfg.resultsDir, 'insar_segment_rates.csv'));
 D.sinkMeasured = Ti.sink_mm_yr;
+D.F = load(fullfile(cfg.resultsDir, 'fullmap_first_years.mat'));
 [~, nearest] = min(abs(T3.lon_mid - G.lon'), [], 2);
 D.event = struct('tide', G.MHHW_m(nearest), 'rp1', G.rp1_m(nearest), ...
                  'rp10', G.rp10_m(nearest), 'rp100', G.rp100_m(nearest));
@@ -130,10 +138,16 @@ for s = {'ssp126', 'ssp245', 'ssp585'}
 end
 end
 
-function first = firstYears(D, cfg, slr, sink, B, method)
+function first = firstYears(D, cfg, slr, sink, B, method, fm)
+% fm: [] for uniform sinking (flood-level map), or the full-map first years
+% for the measured radar sinking (any water, and open sea per event)
 years = cfg.years; t0 = cfg.refYear;
 h = cummax((slr - slr(years == t0)) + sink(:) .* (years - t0), 2);   % one row, or one row per km
-lagoon = reachYear(D.lvlAny, h, years);
+if isempty(fm)
+    lagoon = reachYear(D.lvlAny, h, years);
+else
+    lagoon = fm.any; lagoon(isnan(lagoon)) = Inf;
+end
 if startsWith(method, 'M0') || startsWith(method, 'M1')
     first = lagoon; return
 end
@@ -150,7 +164,17 @@ if startsWith(method, 'M3')
     elseif contains(method, '10-year'), E = D.event.rp10;
     else, E = D.event.rp1;
     end
-    first = min(first, reachYear(D.lvlOcean - E, h, years));
+    if isempty(fm)
+        first = min(first, reachYear(D.lvlOcean - E, h, years));
+    else
+        if contains(method, 'high tide'), e = 2;
+        elseif contains(method, '100-year'), e = 5;
+        elseif contains(method, '10-year'), e = 4;
+        else, e = 3;
+        end
+        oc = fm.ocean(:, e); oc(isnan(oc)) = Inf;
+        first = min(first, oc);
+    end
 end
 end
 

@@ -130,7 +130,7 @@ MATLAB R2026b with Mapping, Image Processing, Statistics and Machine Learning To
 8. `run_uncertainty` runs the Monte Carlo.
 9. `CoastalRiskExplorer` opens the app.
 
-`run_after_insar` runs steps 6 to 8 again in one go, plus `gps_vertical_rate` and `check_spatial_sinking`, and saves a log. The radar map itself was made outside MATLAB (ASF HyP3 and MintPy, see `insar/README_insar.md`).
+`run_after_insar` runs `gps_vertical_rate`, `run_fullmap_sinking` and steps 6 to 8 again in one go, and saves a log. The radar map itself was made outside MATLAB (ASF HyP3 and MintPy, see `insar/README_insar.md`).
 
 Results are written to `results/` and figures to `results/figures/`.
 
@@ -152,7 +152,10 @@ Results are written to `results/` and figures to `results/figures/`.
 | `insar/` | How the radar map was made: pair list, download script, MintPy settings, GPS tie and map scripts |
 | `insar_segment_rates.m` | Measured sinking rate and uncertainty for each road km from the radar map; map and profile figures |
 | `gps_vertical_rate.m` | Vertical rate of the UNILAG GPS stations ULAG and LAF1 (Nevada Geodetic Laboratory) |
-| `check_spatial_sinking.m` | Checks the one-rate-per-km shortcut against sinking the whole elevation model pixel by pixel |
+| `sinking_field.m` | Radar land-motion rate and uncertainty for every elevation cell (gaps filled from nearby radar pixels) |
+| `road_cells.m` | Elevation cells under the highway, grouped by 1 km segment |
+| `fullmap_first_years.m` | Connected bathtub run year by year with every cell moved at its own rate |
+| `run_fullmap_sinking.m` | M1 and M3 with measured sinking for all scenarios and percentiles; checks against the flood-level map |
 | `run_after_insar.m` | Re-runs every step that uses sinking, with a log |
 | `run_m3_extremes.m` | Step 3: adds high tide and 1, 10 and 100-year storm water levels (M3); method ladder figure |
 | `extract_gtsm.m` | Rebuilds the coastal extreme water level table from the Copernicus NetCDF files |
@@ -184,12 +187,12 @@ Results are written to `results/` and figures to `results/figures/`.
 - Elevations are metres above EGM2008, taken as mean sea level in 2020. The offset between EGM2008 and local mean sea level at Lagos is not yet applied.
 - Sea level rise is counted from 2020 using the IPCC AR6 curve for Lagos (relative to 1995-2014).
 - Lagos Lagoon and connected creeks count as sea (tidal, open to the ocean). Water reaches land only through connected cells (8-connectivity).
-- Land sinking in M1 to M3 is the radar rate measured under each road km (median of the 80 m pixels within 500 m of the road), kept constant from 2020 onwards. Within a km it is treated as uniform, which is the same as an equal extra sea-level rise there; `check_spatial_sinking` tests this against sinking the whole elevation model pixel by pixel. The radar sees mostly buildings in built-up areas, so it may under-read sinking of open fill under the road there (see `insar/README_insar.md`). Uniform rates of 0, 5, 11.4 and 34 mm/yr are kept as sensitivity cases.
+- Land sinking in M1 to M3 comes from the radar map, applied to every elevation cell at its own rate and kept constant from 2020 onwards; the connected bathtub is re-run for every year. Where the radar has no reliable pixel (water, dense vegetation), the cell takes the mean of radar pixels within 500 m, then 1500 m, then the nearest pixel, with a larger uncertainty. A first version that gave each road km a single rate was dropped: it missed water reaching the road through land that sinks faster than the road. The radar sees mostly buildings in built-up areas, so it may under-read sinking of open fill under the road there (see `insar/README_insar.md`). Uniform rates of 0, 5, 11.4 and 34 mm/yr are kept as sensitivity cases.
 - M3 adds tide and storm levels from GTSM (1985-2014) as fixed heights above each year's mean sea level; changes in storminess are not included. The 95% upper bounds of these return levels at Lagos are unrealistically large (tens of metres) from the bootstrap fit, so only the best fit is used.
 - Tide and storm peaks enter from the open sea only. Lagoon water follows the mean sea level but not the ocean tide or surge (lower bound); the run also prints the upper bound where the lagoon gets the full ocean peak.
 - A bathtub fills every connected low cell to the event peak. Real storm peaks last hours, so flooding inland of the shore is overstated for short events; results for the road are the year the water can first reach it, not a prediction of damage.
 - M2 uses the assessments' own measured shoreline change rates (1984-2024). Accretion is set to zero, because past gains came mostly from port and reclamation sand fill. Sea-level rise above the historical rate (3.25 mm/yr, global mean 1993-2018, IPCC AR6) adds retreat through the Bruun rule with factors 0, 50 and 100 m per m. The Bruun rule is a rough estimate and is often criticised (Cooper and Pilkey 2004), so it is shown as a range. Alongshore smoothing is off (D = 0) because no calibrated value exists here.
-- Uncertainty runs sample the AR6 5th to 95th percentile range only (tails beyond are not sampled), the measured sinking per km plus a GPS tie error (sd 2.5 mm/yr, same for all km) and a local error (one normal draw per run times each km's sigma, fully correlated along the road), and the Bruun factor between 0 and 100. Elevation model error is not sampled yet.
+- Uncertainty runs sample the AR6 5th to 95th percentile range only (tails beyond are not sampled), the radar map plus a GPS tie error (sd 2.5 mm/yr, same everywhere) and a local error (one normal draw per run times each cell's sigma, fully correlated), with flooding checked in 2050 and 2100 only, and the Bruun factor between 0 and 100. Elevation model error is not sampled yet.
 - Our chainage starts at the westernmost mapped point of the road and lines up with the assessment chainage to within about 1 km.
 - Road points over water (bridges) are left out. A 1 km segment counts as reached when at least 10% of its length (100 m) is under water, so a single low pixel does not decide a whole kilometre.
 - Near km 50-54 (about 3.88-3.92 E) the elevation model shows two low channels (below 0.6 m) from the beach to the route. A channel from the beach inland is visible there on satellite imagery (checked on Google Maps, November 2026), so the low ground is real: the route crosses tidal wetland that is below today's high tide over a few hundred metres. A finished road would be raised or bridged here; the result means the design height at these crossings must account for the water levels below, which the assessment does not state.
