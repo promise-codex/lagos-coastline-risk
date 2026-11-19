@@ -60,6 +60,11 @@ cfg.slrCases = {'medium', 'ssp126', 50; ...
 %   34    lower bound given for Lekki and Victoria Island by
 %         Ikuemonisan (2025), Discover Environment 3:148
 cfg.subsidence_mm_yr = [0 5 11.4 34];
+% A 1 km road segment counts as reached when at least this share of its
+% length is under water (10 percent = 100 m). Using the single lowest
+% point instead lets one low pixel (a creek, a ditch or a data error)
+% decide the whole kilometre.
+cfg.segmentWetShare = 0.10;
 % Water levels at which the flood-level map is built (metres)
 cfg.floodLevels = 0:0.05:6;
 

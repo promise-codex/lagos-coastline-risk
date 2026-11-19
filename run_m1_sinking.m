@@ -83,7 +83,7 @@ fl = FL(sub2ind(size(FL), I(use), J(use)));
 fl = double(fl);
 segOf = discretize(H.samples.chainage_km(use), [H.segs.start_km; H.segs.end_km(end)]);
 nSeg = height(H.segs);
-segLevel = accumarray(segOf, fl, [nSeg 1], @min, NaN);   % level at which any point is wet
+segLevel = accumarray(segOf, fl, [nSeg 1], @(x) wetLevel(x, cfg.segmentWetShare), NaN);   % level at which 10% of the segment is wet
 
 road = H.segs(:, {'segment', 'start_km', 'end_km', 'lat_mid', 'lon_mid'});
 road.wet_level_m = segLevel;
@@ -121,7 +121,7 @@ end
 writetable(strips, fullfile(cfg.resultsDir, 'm1_corridor_first_wet_year.csv'));
 
 % ---- 5. Summary ---------------------------------------------------------------
-fprintf('\nRoad: number of 1 km segments (of %d) with some wet length\n', sum(~isnan(segLevel)));
+fprintf('\nRoad: number of 1 km segments (of %d) with at least 10%% of their length wet\n', sum(~isnan(segLevel)));
 fprintf('%-24s %-12s %8s %8s %8s\n', 'Sea-level case', 'Sinking', 'by 2050', 'by 2100', 'by 2150');
 for c = 1:nCase
     for r = 1:nRate
@@ -174,4 +174,13 @@ end
 
 function t = yearText(y)
 if isinf(y) || isnan(y), t = 'not by 2150'; else, t = sprintf('%d', y); end
+end
+
+function L = wetLevel(x, share)
+% Water level at which the given share of a segment's points are wet.
+% NaN points (water cells under bridges) are left out.
+x = x(~isnan(x));
+if isempty(x), L = NaN; return, end
+x = sort(x);
+L = x(max(1, ceil(share * numel(x))));
 end

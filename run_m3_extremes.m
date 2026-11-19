@@ -74,9 +74,9 @@ use = ~isnan(I) & ~isnan(J) & H.samples.mapped(:);
 idx = sub2ind(size(FL), I(use), J(use));
 segOf = discretize(H.samples.chainage_km(use), [H.segs.start_km; H.segs.end_km(end)]);
 nSeg = height(H.segs);
-% NaN over water (bridges) is ignored by min
-segLevel  = accumarray(segOf, double(FL(idx)),  [nSeg 1], @min, NaN);   % any water source
-segOcean  = accumarray(segOf, double(FLo(idx)), [nSeg 1], @min, NaN);   % open sea only
+% NaN over water (bridges) is left out
+segLevel  = accumarray(segOf, double(FL(idx)),  [nSeg 1], @(x) wetLevel(x, cfg.segmentWetShare), NaN);   % any water source
+segOcean  = accumarray(segOf, double(FLo(idx)), [nSeg 1], @(x) wetLevel(x, cfg.segmentWetShare), NaN);   % open sea only
 segOcean(isnan(segOcean) & ~isnan(segLevel)) = Inf;
 [~, nearest] = min(abs(H.segs.lon_mid - G.lon'), [], 2);   % nearest point along the coast
 
@@ -147,4 +147,13 @@ end
 
 function t = yearText(y)
 if isinf(y) || isnan(y), t = 'none'; else, t = sprintf('%d', y); end
+end
+
+function L = wetLevel(x, share)
+% Water level at which the given share of a segment's points are wet.
+% NaN points (water cells under bridges) are left out.
+x = x(~isnan(x));
+if isempty(x), L = NaN; return, end
+x = sort(x);
+L = x(max(1, ceil(share * numel(x))));
 end
