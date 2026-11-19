@@ -86,7 +86,7 @@ fprintf('\nCheck 1, Sentinel-2 (20 m) minus Landsat (30 m), same km and year, %d
 fprintf('  mean %.1f m, median %.1f m, robust spread (1.48 x MAD) %.1f m, RMSE %.1f m\n', ...
     mean(d), median(d), 1.4826 * median(abs(d - median(d))), sqrt(mean(d.^2)));
 big = abs(d - median(d)) > 100;
-fprintf('  %d pairs (%.0f%%) differ by more than 100 m from the median: the two sensors picked a different\n', sum(big), 100 * mean(big));
+fprintf('  %d pairs (%.0f%%) differ by more than 100 m from the median: probably the two sensors picked a different\n', sum(big), 100 * mean(big));
 fprintf('  water edge (river mouth, lagoon or surf). Without them: RMSE %.1f m\n', sqrt(mean(d(~big).^2)));
 
 % ---- Rates (Landsat, the long record) -------------------------------------------------
