@@ -40,7 +40,10 @@ epr = nan(nSeg, 1); eprSource = strings(nSeg, 1);
 B1 = readtable(fullfile(cfg.dataDir, 'esia', 'shoreline_rates_section1.csv'));
 for k = 1:nSeg
     if midKm(k) < 47.5
-        b = find(midKm(k) >= B1.from_km & midKm(k) < B1.to_km, 1);   % first listed band wins
+        % band covering most of this km (first listed band wins a tie)
+        ov = max(0, min(segs.end_km(k), B1.to_km) - max(segs.start_km(k), B1.from_km));
+        [best, b] = max(ov);
+        if best < 0.25, b = []; end                                  % less than 250 m covered
         if ~isempty(b) && ~isnan(B1.epr_used_m_yr(b))
             epr(k) = B1.epr_used_m_yr(b);
             eprSource(k) = sprintf('S1 p.%s, CH %.1f-%.1f', string(B1.page(b)), B1.from_km(b), B1.to_km(b));
