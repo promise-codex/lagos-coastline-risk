@@ -25,8 +25,8 @@
 %   a straight coastal baseline); this is a simplification.
 %
 %   Wave power: P = 0.49 * Hs^2 * T (kW/m, deep water), from ERA5 monthly
-%   means of significant wave height Hs and mean wave period T at the sea
-%   points of data/era5/ (any .nc file there), averaged per year. Squaring a
+%   means of significant wave height Hs and mean wave period T at the open-sea
+%   points (6.0 N and south) of data/era5/ (any .nc file there), averaged per year. Squaring a
 %   monthly mean Hs underestimates the mean of Hs^2, and the mean period is
 %   used for the energy period; both are approximations, and only the
 %   year-to-year changes of P are used. Without the ERA5 file, a = 0.
@@ -76,8 +76,12 @@ if ~isempty(f)
     t = ncread(fn, tname); u = ncreadatt(fn, tname, 'units');
     t0 = datetime(regexp(u, '\d{4}-\d{2}-\d{2}', 'match', 'once'));
     if startsWith(u, 'seconds'), tt = t0 + seconds(double(t)); else, tt = t0 + hours(double(t)); end
+    lat = double(ncread(fn, 'latitude')); lon = double(ncread(fn, 'longitude'));
+    [LO, LA] = ndgrid(lon, lat);                           % ncread order: longitude x latitude x time
     hs = reshape(hs, [], numel(tt)); tm = reshape(tm, [], numel(tt));
-    sea = all(~isnan(hs), 2);
+    % open-sea points only: the 6.5 N row lies on the coast (mostly land or
+    % sheltered water), so points at 6.0 N and south are used
+    sea = all(~isnan(hs), 2) & LA(:) <= 6.0;
     pm = 0.49 * mean(hs(sea, :), 1).^2 .* mean(tm(sea, :), 1);            % kW/m, monthly
     for i = 1:numel(waveYears)
         Pw(i) = mean(pm(year(tt) == waveYears(i)), 'omitnan');
