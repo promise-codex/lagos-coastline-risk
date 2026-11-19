@@ -42,6 +42,7 @@ that covers the full 104 km.
 | `run_m3_extremes.m` | Step 3: adds high tide and 1, 10 and 100-year storm water levels (M3); method ladder figure |
 | `extract_gtsm.m` | Rebuilds the coastal extreme water level table from the Copernicus NetCDF files |
 | `data/gtsm/gtsm_lagos_stations.csv` | High tide and return water levels at 8 coastal points along Lagos (GTSM, ERA5, 1985-2014) |
+| `run_uncertainty.m` | Step 5: Monte Carlo (2000 runs) over sea-level quantile, sinking rate and Bruun factor; chance each road km is reached by 2050 and 2100; checks the closed-form shoreline solution against Simulink |
 | `get_place_coords.m` | Locates the Section 2 beach communities (OpenStreetMap, with the assessment's sampling points as fallback) |
 | `build_shoreline_model.m` | Builds the Simulink shoreline model `shoreline_model.slx` (dy/dt = r - B s(t) + D L y) |
 | `run_m2_shoreline.m` | Step 4: moving beach (M2) with the Simulink model, check against the assessment's erosion forecast, full method ladder |
@@ -70,6 +71,7 @@ that covers the full 104 km.
 - Tide and storm peaks enter from the open sea only. Lagoon water follows the mean sea level but not the ocean tide or surge (lower bound); the run also prints the upper bound where the lagoon gets the full ocean peak.
 - A bathtub fills every connected low cell to the event peak. Real storm peaks last hours, so flooding inland of the shore is overstated for short events; results for the road are the year the water can first reach it, not a prediction of damage.
 - M2 uses the assessments' own measured shoreline change rates (1984-2024). Accretion is set to zero, because past gains came mostly from port and reclamation sand fill. Sea-level rise above the historical rate (3.25 mm/yr, global mean 1993-2018, IPCC AR6) adds retreat through the Bruun rule with factors 0, 50 and 100 m per m. The Bruun rule is a rough estimate and is often criticised (Cooper and Pilkey 2004), so it is shown as a range. Alongshore smoothing is off (D = 0) because no calibrated value exists here.
+- Uncertainty runs sample the AR6 5th to 95th percentile range only (tails beyond are not sampled), sinking uniformly between 0 and 34 mm/yr, and the Bruun factor between 0 and 100. Elevation model error is not sampled yet.
 - Our chainage starts at the westernmost mapped point of the road and lines up with the assessment chainage to within about 1 km.
 - Road points over water (bridges) are left out. A 1 km segment counts as reached when at least 10% of its length (100 m) is under water, so a single low pixel does not decide a whole kilometre.
 - Near km 50-54 (about 3.88-3.92 E) the elevation model shows two low channels (below 0.6 m) from the beach to the route. A channel from the beach inland is visible there on satellite imagery (checked on Google Maps, November 2026), so the low ground is real: the route crosses tidal wetland that is below today's high tide over a few hundred metres. A finished road would be raised or bridged here; the result means the design height at these crossings must account for the water levels below, which the assessment does not state.
