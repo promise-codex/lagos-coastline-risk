@@ -31,9 +31,19 @@ isRoad = ~cellfun(@isempty, regexpi({f.name}, 'coastal highway|calabar', 'once')
 road = f(isRoad);
 fprintf('Using %d highway pieces, named: %s\n', numel(road), strjoin(unique({road.name}), ' | '));
 
-lat = vertcat(road.lat);
-lon = vertcat(road.lon);
-ok  = ~isnan(lat) & ~isnan(lon);
+% Fill in points along each piece (about every 50 m). Some pieces have
+% vertices kilometres apart; the straight line between two vertices is
+% still part of the mapped road, so it counts as mapped.
+lat = []; lon = [];
+for k = 1:numel(road)
+    [la, lo] = densify(road(k).lat, road(k).lon, 0.0005);
+    lat = [lat; la]; lon = [lon; lo]; %#ok<AGROW>
+end
+% Keep only the study area. One OSM piece runs all the way to Calabar,
+% and the download returns the whole piece, not just the part in the box.
+ok  = ~isnan(lat) & ~isnan(lon) & ...
+      lat >= cfg.latlim(1) & lat <= cfg.latlim(2) & ...
+      lon >= cfg.lonlim(1) & lon <= cfg.lonlim(2);
 lat = lat(ok); lon = lon(ok);
 
 % ---- Merge carriageways into one centreline -------------------------------
@@ -132,6 +142,24 @@ fprintf('Saved %d segments (%d fully mapped) to %s\n', height(segs), sum(segs.ma
     fullfile(cfg.osmDir, 'highway_segments.mat'));
 
 % -------------------------------------------------------------------------
+function [la, lo] = densify(lat, lon, maxStepDeg)
+% Add points along each straight piece so no two points are more than
+% maxStepDeg apart. NaN breaks between parts are kept.
+la = []; lo = [];
+for i = 1:numel(lat) - 1
+    if any(isnan([lat(i) lat(i+1) lon(i) lon(i+1)]))
+        continue
+    end
+    n = max(1, ceil(hypot(lat(i+1) - lat(i), lon(i+1) - lon(i)) / maxStepDeg));
+    t = (0:n-1)' / n;
+    la = [la; lat(i) + t * (lat(i+1) - lat(i))]; %#ok<AGROW>
+    lo = [lo; lon(i) + t * (lon(i+1) - lon(i))]; %#ok<AGROW>
+end
+if ~isempty(lat) && ~isnan(lat(end))
+    la = [la; lat(end)]; lo = [lo; lon(end)];
+end
+end
+
 function runs = findRuns(tf)
 % Start and end index of each run of true values in a logical vector.
 d = diff([false; tf(:); false]);
