@@ -70,6 +70,12 @@ cfg.insarMinPixels  = 10;    % fewer than this: search 3x wider, then fill from 
 cfg.insarDatumSigma = 2.5;   % mm/yr, 1-sigma error of the GPS tie, common to all segments
 cfg.insarFarFill    = 'regional'; % cells > 1.5 km from radar pixels: 'regional', 'median' or 'nearest'
 cfg.insarRegional_m = 3000;  % sigma of the Gaussian average used by 'regional'
+% Own shorelines (step 6, extract_shorelines.m)
+cfg.mndwiThreshold   = 0;     % water/land threshold on the yearly median MNDWI
+cfg.minClearObs      = 3;     % clear observations needed at the shoreline pixel
+cfg.minShoreYears    = 10;    % years with a shoreline needed for a rate
+cfg.reclaimRate_m_yr = 10;    % seaward advance faster than this is flagged as reclaimed land
+cfg.transectLength_m = 4000;  % transect length seaward of the road
 % A 1 km road segment counts as reached when at least this share of its
 % length is under water (10 percent = 100 m). Using the single lowest
 % point instead lets one low pixel (a creek, a ditch or a data error)
