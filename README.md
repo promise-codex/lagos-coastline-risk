@@ -3,7 +3,7 @@
 MATLAB and Simulink project for the MathWorks Global Student Challenge 2026
 (Sustainability and Renewable Energy: *Coastline Prediction using Existing Climate Change Models*).
 
-**Status:** land sinking is measured with our own Sentinel-1 radar processing (2017-2025, tied to GPS; see `insar/README_insar.md`) and applied to every elevation cell at its own rate. Still to add: own satellite shoreline positions, a hindcast test of the shoreline model, and elevation error in the uncertainty runs.
+**Status:** complete analysis. Land sinking is measured with our own Sentinel-1 radar processing (2017-2025, tied to GPS; see `insar/README_insar.md`) and applied to every elevation cell at its own rate. Shorelines 1984-2025 are measured from Landsat and Sentinel-2 (checked against a U-Net), the Simulink shoreline model is calibrated and tested on later years, the refinery and port are assessed, and elevation error is in the uncertainty runs.
 
 ## Key findings
 
@@ -26,7 +26,7 @@ on the same corridor, each adding one process:
 | --- | --- |
 | M0 Bathtub | Sea-level rise on the elevation model, connected to the sea |
 | M1 Sinking land | M0 plus vertical land motion |
-| M2 Moving beach | M1 plus shoreline retreat from a Simulink shoreline model driven by the assessments' measured rates (not yet calibrated or hindcast-tested) |
+| M2 Moving beach | M1 plus shoreline retreat from a Simulink shoreline model driven by the assessments' measured rates (calibration and hindcast test below) |
 | M3 Extreme water | M2 plus tide and storm surge return levels |
 
 For each 1 km segment of the road, the project reports the first year of impact under each
